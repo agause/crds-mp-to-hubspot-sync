@@ -1,8 +1,9 @@
-﻿using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Enum;
+﻿using Crossroads.Service.HubSpot.Sync.Core.Formatters;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Enum;
 
 namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto
 {
-    public class OperationDetail
+    public class OperationDetail : IEmitPlainText, IEmitHtml
     {
         public OperationState OperationState { get; set; }
 
@@ -10,14 +11,14 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto
 
         public string Duration { get; set; }
 
-        internal string PlainTextPrint()
+        public string ToPlainText()
         {
             return $@"Operation State: {OperationState}
 Contact count: {ContactCount}
 Duration: {Duration}";
         }
 
-        internal string HtmlPrint()
+        public string ToHtml()
         {
             return $"Operation State: <strong>{OperationState}</strong><br/>Contact count: {ContactCount}<br/>Duration: {Duration}";
         }

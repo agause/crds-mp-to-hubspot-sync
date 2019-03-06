@@ -1,12 +1,12 @@
-﻿using System;
+﻿using Crossroads.Service.HubSpot.Sync.Core.Formatters;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Enum;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
-using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Enum;
 
 namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto
 {
-    public class ActivityProgress
+    public class ActivityProgress : IEmitHtml, IEmitPlainText
     {
         private static readonly string Crlf = Environment.NewLine;
 
@@ -15,17 +15,13 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto
         /// Newing this object up primes the Steps property with all SyncStepName values and a <see cref="OperationState"/>
         /// of "<see cref="OperationState.Pending"/>".
         /// </summary>
-        public ActivityProgress()
-        {
-            Operations = new Dictionary<string, OperationDetail>();
-            PrimeOperations();
-        }
+        public ActivityProgress() => PrimeOperations();
 
         public ActivityState ActivityState { get; set; }
 
         public string Duration { get; set; }
 
-        public Dictionary<string, OperationDetail> Operations { get; set; }
+        public Dictionary<string, OperationDetail> Operations { get; } = new Dictionary<string, OperationDetail>();
 
         private void PrimeOperations()
         {
@@ -35,26 +31,22 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto
             }
         }
 
-        public string PlainTextPrint()
-        {
-            return $@"
-Activity State: {ActivityState}
+        public string ToPlainText() =>
+             $@"Activity State: {ActivityState}
 Duration: {Duration}
 
-{string.Join($"{Crlf}{Crlf}", Operations.Select(k => $"{MakeEnumStringHumanReadable(k.Key)}{Crlf}{k.Value.PlainTextPrint()}"))}";
-        }
+{string.Join($"{Crlf}{Crlf}", Operations.Select(PlainTextOperationSelector))}";
 
-        public string HtmlPrint()
-        {
-            return $@"Activity State: <strong>{ActivityState}</strong><br/>
+        public string ToHtml() =>
+            $@"Activity State: <strong>{ActivityState}</strong><br/>
             Duration: {Duration}<br/><br/>
 
-            {string.Join("<br/><br/>", Operations.Select(k => $"<u>{MakeEnumStringHumanReadable(k.Key)}</u><br/>{k.Value.HtmlPrint()}"))}";
-        }
+            {string.Join("<br/><br/>", Operations.Select(HtmlOperationSelector))}";
 
-        public string MakeEnumStringHumanReadable(string wordsCrammedTogetherToBeSeparatedByTitleCase)
-        {
-            return Regex.Replace(wordsCrammedTogetherToBeSeparatedByTitleCase, "([a-z])([A-Z])", "$1 $2");
-        }
+        private static Func<KeyValuePair<string, OperationDetail>, string> HtmlOperationSelector =>
+            k => $"<u>{k.Key.SpaceDelimitTitleCaseText()}</u><br/>{k.Value.ToHtml()}";
+
+        private static Func<KeyValuePair<string, OperationDetail>, string> PlainTextOperationSelector =>
+            k => $"{k.Key.SpaceDelimitTitleCaseText()}{Crlf}{k.Value.ToPlainText()}";
     }
 }

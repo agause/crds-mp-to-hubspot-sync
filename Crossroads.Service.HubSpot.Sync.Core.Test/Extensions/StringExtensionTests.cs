@@ -12,20 +12,14 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Test.Extensions
         [InlineData(" ")]
         [InlineData("     ")]
         [InlineData("\r\n\t")]
-        public void NullEmptyOrWhitespaceShouldReturnTrue(string valueToCheck)
-        {
-            valueToCheck.IsNullOrEmpty().Should().BeTrue();
-        }
+        public void IsNullOrWhitespace_WhenNullEmptyOrWhiteSpace_ShouldReturnTrue(string valueToCheck) =>
+            valueToCheck.IsNullOrWhiteSpace().Should().BeTrue();
 
         [Theory]
-        [InlineData(null)]
-        [InlineData("")]
-        [InlineData(" ")]
-        [InlineData("     ")]
-        [InlineData("\r\n\t")]
-        public void not_null_empty_or_whitespace_should_return_false(string valueToCheck)
-        {
-            valueToCheck.IsNotNullOrEmpty().Should().BeFalse();
-        }
+        [InlineData("Title Case Gets Split Apart", "TitleCaseGetsSplitApart")]
+        [InlineData("ABCDEFGis The Beginning Of", "ABCDEFGisTheBeginningOf")]
+        [InlineData("ABCDEFG is The Beginning Of", "ABCDEFG isTheBeginningOf")]
+        public void SpaceDelimitTitleCaseText_WhenTitleCase_ShouldGetSpacedAsExpected(string expected, string titleCaseText) =>
+            titleCaseText.SpaceDelimitTitleCaseText().Should().Be(expected);
     }
 }

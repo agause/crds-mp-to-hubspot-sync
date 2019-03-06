@@ -1,5 +1,6 @@
 ﻿
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace System
 {
@@ -10,19 +11,12 @@ namespace System
         /// String.IsNullOrWhiteSpace, which is basically what the original String.IsNullOrEmpty
         /// should have been.
         /// </summary>
-        public static bool IsNullOrEmpty(this string toCheckForNullEmptyOrWhitespace)
-        {
-            return string.IsNullOrWhiteSpace(toCheckForNullEmptyOrWhitespace);
-        }
-
-        public static bool IsNotNullOrEmpty(this string toConfirmIsNotNullEmptyOrWhitespace)
-        {
-            return toConfirmIsNotNullEmptyOrWhitespace.IsNullOrEmpty() == false;
-        }
+        public static bool IsNullOrWhiteSpace(this string toCheckForNullEmptyOrWhitespace) =>
+            string.IsNullOrWhiteSpace(toCheckForNullEmptyOrWhitespace);
 
         public static string CapitalizeFirstLetter(this string valueToCapitalize)
         {
-            if (valueToCapitalize.IsNullOrEmpty())
+            if (valueToCapitalize.IsNullOrWhiteSpace())
                 return valueToCapitalize;
 
             if (valueToCapitalize.Trim().ToUpperInvariant().First().Equals(valueToCapitalize.Trim()[0])) // don't mess with it if the first character is already proper case
@@ -30,5 +24,10 @@ namespace System
 
             return Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(valueToCapitalize.Trim());
         }
+
+        public static string SpaceDelimitTitleCaseText(this string wordsCrammedTogetherToBeSeparatedByTitleCase) =>
+            wordsCrammedTogetherToBeSeparatedByTitleCase.IsNullOrWhiteSpace()
+                ? string.Empty
+                : Regex.Replace(wordsCrammedTogetherToBeSeparatedByTitleCase ?? string.Empty, "([a-z])([A-Z])", "$1 $2");
     }
 }

@@ -75,7 +75,7 @@ namespace Crossroads.Service.HubSpot.Sync.App.Controllers
                 try
                 {
                     var progress = _configurationService.GetCurrentActivityProgress();
-                    return Content(progress.HtmlPrint(), "text/html");
+                    return Content(progress.ToHtml(), "text/html");
                 }
                 catch (Exception exc)
                 {

@@ -27,13 +27,13 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Serialization.Impl
         {
             using (_logger.BeginScope(CoreEvent.Serialization.Deserialize))
             {
-                if (serializedInput.IsNullOrEmpty())
+                if (serializedInput.IsNullOrWhiteSpace())
                     return default(T);
                 try
                 {
                     _logger.LogInformation($@"Begin deserialization...
 json: {serializedInput}");
-                    if (selector.IsNotNullOrEmpty())
+                    if (selector.IsNullOrWhiteSpace() == false)
                     {
                         _logger.LogInformation($"Using provided JSON root node selector: {selector}.");
                         return JObject.Parse(serializedInput).SelectToken(selector).ToObject<T>();
