@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
-using Crossroads.Service.HubSpot.Sync.Data.MongoDb.JobProcessing;
-using Crossroads.Service.HubSpot.Sync.Data.MongoDb.JobProcessing.Dto;
-using Crossroads.Service.HubSpot.Sync.Data.MongoDb.JobProcessing.Enum;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Enum;
 
 namespace Crossroads.Service.HubSpot.Sync.App.Controllers
 {

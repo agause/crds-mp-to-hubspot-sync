@@ -1,6 +1,6 @@
 ﻿using Crossroads.Service.HubSpot.Sync.ApplicationServices.Configuration.Dto;
-using Crossroads.Service.HubSpot.Sync.Data.MongoDb.JobProcessing.Dto;
-using Crossroads.Service.HubSpot.Sync.Data.MongoDb.JobProcessing.Enum;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Enum;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
