@@ -1,11 +1,11 @@
 ﻿using Crossroads.Service.HubSpot.Sync.Core.Serialization;
 using Crossroads.Service.HubSpot.Sync.Core.Time;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto;
 
 namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Impl
 {
@@ -40,15 +40,13 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Impl
             return operationDates;
         }
 
-        public void PersistActivityProgress(ActivityProgress activityProgress)
-        {
+        public void PersistActivityProgress(ActivityProgress activityProgress) =>
             _mongoDatabase
                 .GetCollection<ActivityProgressKeyValue>(nameof(ActivityProgressKeyValue))
                 .ReplaceOne(
                     filter: Builders<ActivityProgressKeyValue>.Filter.Eq("_id", nameof(ActivityProgressKeyValue)),
                     replacement: new ActivityProgressKeyValue { LastUpdatedUtc = _clock.UtcNow, Value = activityProgress },
                     options: new UpdateOptions { IsUpsert = true });
-        }
 
         public void PersistActivity(Activity activity)
         {
@@ -84,22 +82,18 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Impl
                     options: new UpdateOptions { IsUpsert = true });
         }
 
-        public List<HubSpotApiDailyRequestCountKeyValue> GetHubSpotApiDailyRequestCount()
-        {
-            return _mongoDatabase
+        public List<HubSpotApiDailyRequestCountKeyValue> GetHubSpotApiDailyRequestCount() =>
+            _mongoDatabase
                 .GetCollection<HubSpotApiDailyRequestCountKeyValue>(nameof(HubSpotApiDailyRequestCountKeyValue))
                 .Find(getEverySingleDailyCount => true) // hack to get everything
                 .ToList();
-        }
 
-        public string GetActivity(string activityId)
-        {
-            return _jsonSerializer.Serialize(
+        public string GetActivity(string activityId) =>
+            _jsonSerializer.Serialize(
                 _mongoDatabase
                     .GetCollection<Activity>(nameof(Activity))
                     .Find(kv => kv.Id == activityId)
                     .FirstOrDefault());
-        }
 
         public string GetMostRecentActivity()
         {
@@ -107,16 +101,14 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Impl
             return GetActivity(mostRecentActivity.Id);
         }
 
-        public List<string> GetActivityIds(int limit)
-        {
-            return _mongoDatabase
+        public List<string> GetActivityIds(int limit) =>
+            _mongoDatabase
                 .GetCollection<Activity>(nameof(Activity))
                 .Find(all => true)
                 .Sort("{_id: -1}")
                 .Limit(limit)
+                .Project(activity => activity.Id)
                 .ToEnumerable()
-                .Select(item => item.Id)
                 .ToList();
-        }
     }
 }
