@@ -10,8 +10,6 @@ using Crossroads.Service.HubSpot.Sync.Core.Serialization;
 using Crossroads.Service.HubSpot.Sync.Core.Time;
 using Crossroads.Service.HubSpot.Sync.Core.Time.Impl;
 using Crossroads.Service.HubSpot.Sync.Core.Utilities;
-using Crossroads.Service.HubSpot.Sync.Core.Utilities.Guid;
-using Crossroads.Service.HubSpot.Sync.Core.Utilities.Guid.Impl;
 using Crossroads.Service.HubSpot.Sync.Core.Utilities.Impl;
 using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing;
 using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Impl;
@@ -58,7 +56,6 @@ namespace Crossroads.Service.HubSpot.Sync.App
             services.AddSingleton<ILoggerFactory, LoggerFactory>();
             services.AddLogging();
             services.AddSingleton<IClock, Clock>();
-            services.AddSingleton<IGenerateCombGuid, GenerateCombGuid>();
             services.AddSingleton<ISleep, Sleeper>();
             services.AddSingleton<IJsonSerializer, JsonSerializer>();
             services.AddSingleton<IMinistryPlatformContactRepository, MinistryPlatformContactRepository>();
