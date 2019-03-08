@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 using Crossroads.Service.HubSpot.Sync.Core.Logging;
 using Crossroads.Service.HubSpot.Sync.Core.Serialization;
 using Microsoft.Extensions.Logging;
@@ -23,7 +24,10 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Utilities.Impl
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public HttpResponseMessage Post<TDto>(string requestUriPathAndQuery, TDto postBody)
+        /// <summary>
+        /// <inheritdoc />
+        /// </summary>
+        public async Task<HttpResponseMessage> PostAsync<TDto>(string requestUriPathAndQuery, TDto postBody)
         {
             var fullUrl = $"{_httpClient.BaseAddress}{requestUriPathAndQuery}";
             var jsonPostBody = _jsonSerializer.Serialize(postBody);
@@ -35,7 +39,7 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Utilities.Impl
                 try
                 {
                     var content = new StringContent(jsonPostBody, Encoding.UTF8, "application/json");
-                    return _httpClient.PostAsync(requestUriPathAndQuery, content).Result;
+                    return await _httpClient.PostAsync(requestUriPathAndQuery, content);
                 }
                 catch (Exception exc) // network error
                 {
@@ -45,7 +49,7 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Utilities.Impl
             }
         }
 
-        public HttpResponseMessage Get(string requestUriPathAndQuery)
+        public async Task<HttpResponseMessage> GetAsync(string requestUriPathAndQuery)
         {
             var fullUrl = $"{_httpClient.BaseAddress}{requestUriPathAndQuery}";
             using (_logger.BeginScope(CoreEvent.Http.Post))
@@ -53,7 +57,7 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Utilities.Impl
                 _logger.LogInformation(CoreEvent.Http.Post, $"Begin GET to {fullUrl}...");
                 try
                 {
-                    return _httpClient.GetAsync(requestUriPathAndQuery).Result;
+                    return await _httpClient.GetAsync(requestUriPathAndQuery);
                 }
                 catch (Exception exc) // network error
                 {
@@ -63,7 +67,7 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Utilities.Impl
             }
         }
 
-        public HttpResponseMessage Delete(string requestUriPathAndQuery)
+        public async Task<HttpResponseMessage> DeleteAsync(string requestUriPathAndQuery)
         {
             var fullUrl = $"{_httpClient.BaseAddress}{requestUriPathAndQuery}";
             using (_logger.BeginScope(CoreEvent.Http.Post))
@@ -71,7 +75,7 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Utilities.Impl
                 _logger.LogInformation(CoreEvent.Http.Post, $"Begin DELETE to {fullUrl}...");
                 try
                 {
-                    return _httpClient.DeleteAsync(requestUriPathAndQuery).Result;
+                    return await _httpClient.DeleteAsync(requestUriPathAndQuery);
                 }
                 catch (Exception exc) // network error
                 {
@@ -81,13 +85,16 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Utilities.Impl
             }
         }
 
-        public TDto GetResponseContent<TDto>(HttpResponseMessage httpResponseMessage)
+        /// <summary>
+        /// <inheritdoc />
+        /// </summary>
+        public async Task<TDto> GetResponseContentAsync<TDto>(HttpResponseMessage httpResponseMessage)
         {
             if (httpResponseMessage == null) return default(TDto);
 
             try
             {
-                return _jsonSerializer.Deserialize<TDto>(httpResponseMessage.Content.ReadAsStringAsync().Result);
+                return _jsonSerializer.Deserialize<TDto>(await httpResponseMessage.Content.ReadAsStringAsync());
             }
             catch (Exception exc)
             {

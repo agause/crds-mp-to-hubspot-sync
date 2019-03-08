@@ -6,30 +6,22 @@ using System.Linq;
 
 namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto
 {
+    /// <summary>
+    /// Commenting mostly for visibility into the fact that this class is a bit busier than its contemporaries.
+    /// Newing this object up primes the Operations property with all OperationName values and a <see cref="OperationState"/>
+    /// of "<see cref="OperationState.Pending"/>".
+    /// </summary>
     public class ActivityProgress : IEmitHtml, IEmitPlainText
     {
         private static readonly string Crlf = Environment.NewLine;
-
-        /// <summary>
-        /// Commenting mostly for visibility into the fact that this constructor is a bit busier than its contemporaries.
-        /// Newing this object up primes the Steps property with all SyncStepName values and a <see cref="OperationState"/>
-        /// of "<see cref="OperationState.Pending"/>".
-        /// </summary>
-        public ActivityProgress() => PrimeOperations();
-
         public ActivityState ActivityState { get; set; }
 
         public string Duration { get; set; }
 
-        public Dictionary<string, OperationDetail> Operations { get; } = new Dictionary<string, OperationDetail>();
-
-        private void PrimeOperations()
-        {
-            foreach (var syncStepName in System.Enum.GetValues(typeof(OperationName)).Cast<OperationName>())
-            {
-                Operations.Add(syncStepName.ToString(), new OperationDetail {OperationState = OperationState.Pending});
-            }
-        }
+        public Dictionary<OperationName, OperationDetail> Operations { get; } =
+            System.Enum.GetValues(typeof(OperationName)) // primes the Operations dictionary on instantiation
+                .Cast<OperationName>()
+                .ToDictionary(k => k, v => new OperationDetail { OperationState = OperationState.Pending });
 
         public string ToPlainText() =>
              $@"Activity State: {ActivityState}
@@ -43,10 +35,10 @@ Duration: {Duration}
 
             {string.Join("<br/><br/>", Operations.Select(HtmlOperationSelector))}";
 
-        private static Func<KeyValuePair<string, OperationDetail>, string> HtmlOperationSelector =>
-            k => $"<u>{k.Key.SpaceDelimitTitleCaseText()}</u><br/>{k.Value.ToHtml()}";
+        private static Func<KeyValuePair<OperationName, OperationDetail>, string> HtmlOperationSelector =>
+            k => $"<u>{k.Key.ToString().SpaceDelimitTitleCaseText()}</u><br/>{k.Value.ToHtml()}";
 
-        private static Func<KeyValuePair<string, OperationDetail>, string> PlainTextOperationSelector =>
-            k => $"{k.Key.SpaceDelimitTitleCaseText()}{Crlf}{k.Value.ToPlainText()}";
+        private static Func<KeyValuePair<OperationName, OperationDetail>, string> PlainTextOperationSelector =>
+            k => $"{k.Key.ToString().SpaceDelimitTitleCaseText()}{Crlf}{k.Value.ToPlainText()}";
     }
 }

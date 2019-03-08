@@ -69,7 +69,8 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
                 var operationDates = activity.PreviousOperationDates = _configurationService.GetLastSuccessfulOperationDates();
                 var ageGradeDeltaLog = default(ChildAgeAndGradeDeltaLogDto);
 
-                Util.TryCatchSwallow(() => { // running this in advance of the create process with the express purpose of avoiding create/update race conditions when we consume the results for update
+                // running this in advance of the create process with the express purpose of avoiding create/update race conditions when we consume the results for update
+                Util.TryCatchSwallow(() => {
                     PersistActivityProgress(activityProgress, OperationName.AgeGradeDataCalculationInMp, OperationState.Processing);
                     activity.ChildAgeAndGradeCalculationOperation = CalculateAndPersistChildAgeGradeDataByHousehold(activity.PreviousOperationDates);
                     ageGradeDeltaLog = activity.ChildAgeAndGradeCalculationOperation.AgeGradeDeltaLog;
@@ -85,50 +86,59 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
                     PersistActivityProgress(activityProgress, OperationName.AgeGradeDataCalculationInMp, OperationState.Aborted);
                 });
 
-                Util.TryCatchSwallow(() => { // sync newly registered contacts to hubspot
+                Util.TryCatchSwallow(async () => { // sync newly registered contacts to HubSpot
                     PersistActivityProgress(activityProgress, OperationName.NewContactRegistrationSync, OperationState.Processing);
-                    activity.NewRegistrationSyncOperation = SyncNewRegistrations(activity.PreviousOperationDates.RegistrationSyncDate, activityProgress);
+                    activity.NewRegistrationSyncOperation = await SyncNewRegistrations(activity.PreviousOperationDates.RegistrationSyncDate, activityProgress);
+                    OperationState operationState;
                     if (_activityValidator.Validate(activity, ruleSet: RuleSetName.NewRegistrationSync).IsValid)
                     {
                         operationDates.RegistrationSyncDate = activity.NewRegistrationSyncOperation.Execution.StartUtc;
                         _jobRepository.PersistLastSuccessfulOperationDates(operationDates);
-                        PersistActivityProgress(activityProgress, OperationName.NewContactRegistrationSync, OperationState.Completed, operationDuration: activity.NewRegistrationSyncOperation.Execution.Duration);
+                        operationState = OperationState.Completed;
                     }
                     else
-                        PersistActivityProgress(activityProgress, OperationName.NewContactRegistrationSync, OperationState.CompletedButWithIssues, operationDuration: activity.NewRegistrationSyncOperation.Execution.Duration);
+                        operationState = OperationState.CompletedButWithIssues;
+
+                    PersistActivityProgress(activityProgress, OperationName.NewContactRegistrationSync, operationState, operationDuration: activity.NewRegistrationSyncOperation.Execution.Duration);
                 }, () => {
                     _logger.LogWarning("Sync new registrations operation aborted.");
                     PersistActivityProgress(activityProgress, OperationName.NewContactRegistrationSync, OperationState.Aborted, operationDuration: activity.NewRegistrationSyncOperation.Execution.Duration);
                 });
 
-                Util.TryCatchSwallow(() => { // sync core contact property updates to hubspot
+                Util.TryCatchSwallow(async () => { // sync core contact property updates to hubspot
                     PersistActivityProgress(activityProgress, OperationName.CoreContactAttributeUpdateSync, OperationState.Processing);
-                    activity.CoreContactAttributeSyncOperation = SyncCoreUpdates(activity.PreviousOperationDates.CoreUpdateSyncDate, activityProgress);
+                    activity.CoreContactAttributeSyncOperation = await SyncCoreUpdates(activity.PreviousOperationDates.CoreUpdateSyncDate, activityProgress);
+                    OperationState operationState;
                     if (_activityValidator.Validate(activity, ruleSet: RuleSetName.CoreContactAttributeSync).IsValid)
                     {
                         operationDates.CoreUpdateSyncDate = activity.CoreContactAttributeSyncOperation.Execution.StartUtc;
                         _jobRepository.PersistLastSuccessfulOperationDates(operationDates);
-                        PersistActivityProgress(activityProgress, OperationName.CoreContactAttributeUpdateSync, OperationState.Completed, operationDuration: activity.CoreContactAttributeSyncOperation.Execution.Duration);
+                        operationState = OperationState.Completed;
                     }
                     else
-                        PersistActivityProgress(activityProgress, OperationName.CoreContactAttributeUpdateSync, OperationState.CompletedButWithIssues, operationDuration: activity.CoreContactAttributeSyncOperation.Execution.Duration);
+                        operationState = OperationState.CompletedButWithIssues;
+
+                    PersistActivityProgress(activityProgress, OperationName.CoreContactAttributeUpdateSync, operationState, operationDuration: activity.CoreContactAttributeSyncOperation.Execution.Duration);
                 }, () => {
                     _logger.LogWarning("Sync core updates operation aborted.");
                     PersistActivityProgress(activityProgress, OperationName.CoreContactAttributeUpdateSync, OperationState.Aborted, operationDuration: activity.CoreContactAttributeSyncOperation.Execution.Duration);
                 });
 
-                Util.TryCatchSwallow(() => { // sync age/grade data to hubspot contacts
+                Util.TryCatchSwallow(async () => { // sync age/grade data to hubspot contacts
                     PersistActivityProgress(activityProgress, OperationName.AgeGradeDataSync, OperationState.Processing);
-                    activity.ChildAgeAndGradeSyncOperation = SyncChildAgeAndGradeData(ageGradeDeltaLog, activity.PreviousOperationDates.AgeAndGradeSyncDate);
+                    activity.ChildAgeAndGradeSyncOperation = await SyncChildAgeAndGradeData(ageGradeDeltaLog, activity.PreviousOperationDates.AgeAndGradeSyncDate);
+                    OperationState operationState;
                     if (_activityValidator.Validate(activity, ruleSet: RuleSetName.ChildAgeGradeSync).IsValid)
                     {
                         if(ageGradeDeltaLog.InsertCount > 0 || ageGradeDeltaLog.UpdateCount > 0)
                             ageGradeDeltaLog.SyncCompletedUtc = operationDates.AgeAndGradeSyncDate = _ministryPlatformContactRepository.SetChildAgeAndGradeDeltaLogSyncCompletedUtcDate();
                         _jobRepository.PersistLastSuccessfulOperationDates(operationDates);
-                        PersistActivityProgress(activityProgress, OperationName.AgeGradeDataSync, OperationState.Completed, activity.ChildAgeAndGradeSyncOperation.SuccessCount, activity.ChildAgeAndGradeSyncOperation.Execution.Duration);
+                        operationState = OperationState.Completed;
                     }
                     else
-                        PersistActivityProgress(activityProgress, OperationName.AgeGradeDataSync, OperationState.CompletedButWithIssues, operationDuration: activity.ChildAgeAndGradeSyncOperation.Execution.Duration);
+                        operationState = OperationState.CompletedButWithIssues;
+
+                    PersistActivityProgress(activityProgress, OperationName.AgeGradeDataSync, operationState, operationDuration: activity.ChildAgeAndGradeSyncOperation.Execution.Duration);
                 }, () => {
                     _logger.LogWarning("Sync age/grade data operation aborted.");
                     PersistActivityProgress(activityProgress, OperationName.AgeGradeDataSync, OperationState.Aborted, operationDuration: activity.ChildAgeAndGradeSyncOperation.Execution.Duration);
@@ -185,7 +195,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
         /// Handles create, update and reconciliation scenarios for MP CRM contacts identified as new registrants that ought to exist
         /// in the HubSpot CRM.
         /// </summary>
-        private ActivitySyncOperation SyncNewRegistrations(DateTime lastSuccessfulSyncDate, ActivityProgress activityProgress)
+        private async Task<ActivitySyncOperation> SyncNewRegistrations(DateTime lastSuccessfulSyncDate, ActivityProgress activityProgress)
         {
             var activity = new ActivitySyncOperation(_clock.UtcNow) {PreviousSyncDate = lastSuccessfulSyncDate};
 
@@ -194,9 +204,9 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
                 _logger.LogInformation("Starting new MP registrations to HubSpot one-way sync operation...");
                 var newContacts = _ministryPlatformContactRepository.GetNewlyRegisteredContacts(lastSuccessfulSyncDate); // talk to MP
                 PersistActivityProgress(activityProgress, OperationName.NewContactRegistrationSync, operationContactCount: newContacts.Count);
-                activity.SerialCreateResult = _contactSyncer.SerialCreate(_dataPrep.Prep(newContacts)); // create in HubSpot
-                activity.SerialUpdateResult = _contactSyncer.SerialUpdate(activity.SerialCreateResult.EmailAddressesAlreadyExist.ToArray()); // update in HubSpot
-                activity.SerialReconciliationResult = _contactSyncer.ReconcileConflicts(activity.SerialUpdateResult.EmailAddressesAlreadyExist.ToArray());
+                activity.SerialCreateResult = await _contactSyncer.SerialCreateAsync(_dataPrep.Prep(newContacts)); // create in HubSpot
+                activity.SerialUpdateResult = await _contactSyncer.SerialUpdateAsync(activity.SerialCreateResult.EmailAddressesAlreadyExist.ToArray()); // update in HubSpot
+                activity.SerialReconciliationResult = await _contactSyncer.ReconcileConflicts(activity.SerialUpdateResult.EmailAddressesAlreadyExist.ToArray());
 
                 return activity;
             }
@@ -216,7 +226,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
         /// Capable of accommodating email address (unique identifier in HubSpot) change and other core contact attribute/property updates.
         /// Can also create a contact if it does not exist.
         /// </summary>
-        private ActivitySyncOperation SyncCoreUpdates(DateTime lastSuccessfulSyncDate, ActivityProgress activityProgress)
+        private async Task<ActivitySyncOperation> SyncCoreUpdates(DateTime lastSuccessfulSyncDate, ActivityProgress activityProgress)
         {
             var activity = new ActivitySyncOperation(_clock.UtcNow) { PreviousSyncDate = lastSuccessfulSyncDate };
 
@@ -225,9 +235,9 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
                 _logger.LogInformation("Starting MP contact core updates to HubSpot one-way sync operation...");
                 var updates = _dataPrep.Prep(_ministryPlatformContactRepository.GetAuditedContactUpdates(lastSuccessfulSyncDate));
                 PersistActivityProgress(activityProgress, OperationName.CoreContactAttributeUpdateSync, operationContactCount: updates.Length);
-                activity.SerialUpdateResult = _contactSyncer.SerialUpdate(updates);
-                activity.SerialCreateResult = _contactSyncer.SerialCreate(activity.SerialUpdateResult.EmailAddressesDoNotExist.ToArray());
-                activity.SerialReconciliationResult = _contactSyncer.ReconcileConflicts(activity.SerialUpdateResult.EmailAddressesAlreadyExist.ToArray());
+                activity.SerialUpdateResult = await _contactSyncer.SerialUpdateAsync(updates);
+                activity.SerialCreateResult = await _contactSyncer.SerialCreateAsync(activity.SerialUpdateResult.EmailAddressesDoNotExist.ToArray());
+                activity.SerialReconciliationResult = await _contactSyncer.ReconcileConflicts(activity.SerialUpdateResult.EmailAddressesAlreadyExist.ToArray());
 
                 return activity;
             }
@@ -243,7 +253,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
             }
         }
 
-        private ActivityChildAgeAndGradeSyncOperation SyncChildAgeAndGradeData(ChildAgeAndGradeDeltaLogDto deltaResult, DateTime lastSuccessfulSyncDate)
+        private async Task<ActivityChildAgeAndGradeSyncOperation> SyncChildAgeAndGradeData(ChildAgeAndGradeDeltaLogDto deltaResult, DateTime lastSuccessfulSyncDate)
         {
             var activity = new ActivityChildAgeAndGradeSyncOperation(_clock.UtcNow)
             {
@@ -254,11 +264,11 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
             try
             {
                 _logger.LogInformation("Starting MP contact age/grade count updates to HubSpot one-way sync operation...");
-                activity.BulkUpdateSyncResult1000 = _contactSyncer.BulkSync(_dataPrep.Prep(_ministryPlatformContactRepository.GetAgeAndGradeGroupDataForContacts()), batchSize: 1000);
-                activity.BulkUpdateSyncResult100 = _contactSyncer.BulkSync(_dataPrep.ToBulk(activity.BulkUpdateSyncResult1000.FailedBatches), batchSize: 100);
-                activity.BulkUpdateSyncResult10 = _contactSyncer.BulkSync(_dataPrep.ToBulk(activity.BulkUpdateSyncResult100.FailedBatches), batchSize: 10);
-                activity.RetryBulkUpdateAsSerialUpdateResult = _contactSyncer.SerialUpdate(_dataPrep.ToSerial(activity.BulkUpdateSyncResult10.FailedBatches));
-                activity.SerialCreateResult = _contactSyncer.SerialCreate(activity.RetryBulkUpdateAsSerialUpdateResult.EmailAddressesDoNotExist.ToArray()); // in the event they don't yet exist but won't be picked up any other way b/c their kiddo count is the only thing to change
+                activity.BulkUpdateSyncResult1000 = await _contactSyncer.BulkSync(_dataPrep.Prep(_ministryPlatformContactRepository.GetAgeAndGradeGroupDataForContacts()), batchSize: 1000);
+                activity.BulkUpdateSyncResult100 = await _contactSyncer.BulkSync(_dataPrep.ToBulk(activity.BulkUpdateSyncResult1000.FailedBatches), batchSize: 100);
+                activity.BulkUpdateSyncResult10 = await _contactSyncer.BulkSync(_dataPrep.ToBulk(activity.BulkUpdateSyncResult100.FailedBatches), batchSize: 10);
+                activity.RetryBulkUpdateAsSerialUpdateResult = await _contactSyncer.SerialUpdateAsync(_dataPrep.ToSerial(activity.BulkUpdateSyncResult10.FailedBatches));
+                activity.SerialCreateResult = await _contactSyncer.SerialCreateAsync(activity.RetryBulkUpdateAsSerialUpdateResult.EmailAddressesDoNotExist.ToArray()); // in the event they don't yet exist but won't be picked up any other way b/c their kiddo count is the only thing to change
 
                 return activity;
             }
@@ -276,9 +286,9 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
 
         private void PersistActivityProgress(ActivityProgress activityProgress, OperationName operationName, OperationState? operationState = null, int? operationContactCount = null, string operationDuration = null)
         {
-            activityProgress.Operations[operationName.ToString()].Duration = operationDuration ?? activityProgress.Operations[operationName.ToString()].Duration;
-            activityProgress.Operations[operationName.ToString()].ContactCount = operationContactCount ?? activityProgress.Operations[operationName.ToString()].ContactCount;
-            activityProgress.Operations[operationName.ToString()].OperationState = operationState ?? activityProgress.Operations[operationName.ToString()].OperationState;
+            activityProgress.Operations[operationName].Duration = operationDuration ?? activityProgress.Operations[operationName].Duration;
+            activityProgress.Operations[operationName].ContactCount = operationContactCount ?? activityProgress.Operations[operationName].ContactCount;
+            activityProgress.Operations[operationName].OperationState = operationState ?? activityProgress.Operations[operationName].OperationState;
             _jobRepository.PersistActivityProgress(activityProgress);
         }
 

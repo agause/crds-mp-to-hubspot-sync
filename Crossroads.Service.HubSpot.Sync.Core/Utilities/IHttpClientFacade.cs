@@ -8,7 +8,7 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Utilities
     /// </summary>
     public interface IHttpClientFacade
     {
-        HttpResponseMessage Get(string requestUriPathAndQuery);
+        Task<HttpResponseMessage> GetAsync(string requestUriPathAndQuery);
 
         /// <summary>
         /// Posts the specified DTO to the provided endpoint.
@@ -17,14 +17,14 @@ namespace Crossroads.Service.HubSpot.Sync.Core.Utilities
         /// <param name="requestUriPathAndQuery">Endpoint to which we will post.</param>
         /// <param name="postBody">Instance of type <see cref="TDto"> to post</see>/></param>
         /// <returns>Returns the http response message.</returns>
-        HttpResponseMessage Post<TDto>(string requestUriPathAndQuery, TDto postBody);
+        Task<HttpResponseMessage> PostAsync<TDto>(string requestUriPathAndQuery, TDto postBody);
 
-        HttpResponseMessage Delete(string requestUriPathAndQuery);
+        Task<HttpResponseMessage> DeleteAsync(string requestUriPathAndQuery);
 
         /// <summary>
         /// Attempts to ask for, receive and deserialize the response content stream to the
         /// specified type.
         /// </summary>
-        TDto GetResponseContent<TDto>(HttpResponseMessage httpResponseMessage);
+        Task<TDto> GetResponseContentAsync<TDto>(HttpResponseMessage httpResponseMessage);
     }
 }

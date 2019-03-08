@@ -10,6 +10,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
 {
@@ -39,12 +40,12 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
         /// </summary>
         /// <param name="hubSpotContacts">Contacts to create/update in HubSpot.</param>
         /// <param name="batchSize">Number of contacts to send to HubSpot per request.</param>
-        public BulkSyncResult BulkSync(BulkHubSpotContact[] hubSpotContacts, int batchSize = DefaultBatchSize)
+        public async Task<BulkSyncResult> BulkSync(BulkHubSpotContact[] hubSpotContacts, int batchSize = DefaultBatchSize)
         {
             var run = new BulkSyncResult(_clock.UtcNow)
             {
                 TotalContacts = hubSpotContacts.Length,
-                BatchCount = CalculateNumberOfBatches(hubSpotContacts, batchSize)
+                BatchCount = CalculateNumberOfBatches(hubSpotContacts.Length, batchSize)
             };
 
             try
@@ -52,7 +53,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
                 for (int currentBatchNumber = 0; currentBatchNumber < run.BatchCount; currentBatchNumber++)
                 {
                     var contactBatch = hubSpotContacts.Skip(currentBatchNumber * batchSize).Take(batchSize).ToArray(); // extract the relevant group of contacts
-                    var response = _http.Post($"contacts/v1/contact/batch?hapikey={_hubSpotApiKey}", contactBatch);
+                    var response = await _http.PostAsync($"contacts/v1/contact/batch?hapikey={_hubSpotApiKey}", contactBatch);
 
                     switch (response.StatusCode)
                     {
@@ -67,7 +68,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
                                 Count = contactBatch.Length,
                                 BatchNumber = currentBatchNumber + 1,
                                 HttpStatusCode = response.StatusCode,
-                                Exception = _http.GetResponseContent<HubSpotException>(response),
+                                Exception = await _http.GetResponseContentAsync<HubSpotException>(response),
                                 HubSpotContacts = contactBatch
                             });
 
@@ -90,15 +91,15 @@ More details will be available in the serial processing logs.");
             }
         }
 
-        private int CalculateNumberOfBatches(BulkHubSpotContact[] hubSpotContacts, int prescribedBatchSize)
+        private int CalculateNumberOfBatches(int numberOfContacts, int prescribedBatchSize)
         {
-            return (hubSpotContacts.Length / prescribedBatchSize) + (hubSpotContacts.Length % prescribedBatchSize > 0 ? 1 : 0);
+            return (numberOfContacts / prescribedBatchSize) + (numberOfContacts % prescribedBatchSize > 0 ? 1 : 0);
         }
 
         /// <summary>
         /// https://developers.hubspot.com/docs/methods/contacts/create_contact
         /// </summary>
-        public SerialSyncResult SerialCreate(SerialHubSpotContact[] hubSpotContacts)
+        public async Task<SerialSyncResult> SerialCreateAsync(SerialHubSpotContact[] hubSpotContacts)
         {
             var run = new SerialSyncResult(_clock.UtcNow) { TotalContacts = hubSpotContacts.Length };
             try
@@ -106,7 +107,7 @@ More details will be available in the serial processing logs.");
                 for (int currentContactIndex = 0; currentContactIndex < hubSpotContacts.Length; currentContactIndex++)
                 {
                     var contact = hubSpotContacts[currentContactIndex];
-                    var response = _http.Post($"contacts/v1/contact?hapikey={_hubSpotApiKey}", contact);
+                    var response = await _http.PostAsync($"contacts/v1/contact?hapikey={_hubSpotApiKey}", contact);
 
                     switch (response.StatusCode)
                     {
@@ -120,7 +121,7 @@ More details will be available in the serial processing logs.");
                             run.EmailAddressAlreadyExistsCount++;
                             break;
                         default: // contact was rejected for create
-                            SetFailureData(run, response, contact, hubSpotContacts.Length, currentContactIndex);
+                            await SetFailureData(run, response, contact, hubSpotContacts.Length, currentContactIndex);
                             break;
                     }
 
@@ -138,7 +139,7 @@ More details will be available in the serial processing logs.");
         /// <summary>
         /// https://developers.hubspot.com/docs/methods/contacts/update_contact-by-email
         /// </summary>
-        public SerialSyncResult SerialUpdate(SerialHubSpotContact[] hubSpotContacts)
+        public async Task<SerialSyncResult> SerialUpdateAsync(SerialHubSpotContact[] hubSpotContacts)
         {
             var run = new SerialSyncResult(_clock.UtcNow) { TotalContacts = hubSpotContacts.Length };
             try
@@ -146,7 +147,7 @@ More details will be available in the serial processing logs.");
                 for (int currentContactIndex = 0; currentContactIndex < hubSpotContacts.Length; currentContactIndex++)
                 {
                     var contact = hubSpotContacts[currentContactIndex];
-                    SerialUpdate(currentContactIndex, contact, hubSpotContacts.Length, run);
+                    await SerialUpdateAsync(currentContactIndex, contact, hubSpotContacts.Length, run);
                     PumpTheBreaksEveryNRequestsToAvoid429Exceptions(currentContactIndex + 1);
                 }
 
@@ -158,9 +159,9 @@ More details will be available in the serial processing logs.");
             }
         }
 
-        private SerialSyncResult SerialUpdate(int currentContactIndex, SerialHubSpotContact hubSpotContact, int contactCount, SerialSyncResult run)
+        private async Task<SerialSyncResult> SerialUpdateAsync(int currentContactIndex, SerialHubSpotContact hubSpotContact, int contactCount, SerialSyncResult run)
         {
-            var response = _http.Post($"contacts/v1/contact/email/{hubSpotContact.Email}/profile?hapikey={_hubSpotApiKey}", hubSpotContact);
+            var response = await _http.PostAsync($"contacts/v1/contact/email/{hubSpotContact.Email}/profile?hapikey={_hubSpotApiKey}", hubSpotContact);
 
             switch (response.StatusCode)
             {
@@ -178,7 +179,7 @@ More details will be available in the serial processing logs.");
                     run.EmailAddressAlreadyExistsCount++;
                     break;
                 default: // contact was rejected for update (application exception)
-                    SetFailureData(run, response, hubSpotContact, contactCount, currentContactIndex);
+                    await SetFailureData(run, response, hubSpotContact, contactCount, currentContactIndex);
                     break;
             }
 
@@ -197,7 +198,7 @@ More details will be available in the serial processing logs.");
         /// 2) Delete contact by VID (acquired by old email address)
         /// 3) Update contact in HubSpot with new email address in both the url and the post body
         /// </summary>
-        public SerialSyncResult ReconcileConflicts(SerialHubSpotContact[] hubSpotContacts)
+        public async Task<SerialSyncResult> ReconcileConflicts(SerialHubSpotContact[] hubSpotContacts)
         {
             const int requestsPerReconciliation = 3, requestsPerSecond = 9;
             int reconciliationIteration = 1;
@@ -208,10 +209,10 @@ More details will be available in the serial processing logs.");
                 for (int currentContactIndex = 0; currentContactIndex < hubSpotContacts.Length; currentContactIndex++)
                 {
                     var contact = hubSpotContacts[currentContactIndex];
-                    var hubSpotContact = SerialGet<HubSpotVidResult>(contact, run); // HubSpot request #1
-                    run = SerialDelete(currentContactIndex, contact, hubSpotContact, hubSpotContacts.Length, run); // HubSpot request #2
+                    var hubSpotContact = await SerialGetAsync<HubSpotVidResult>(contact, run); // HubSpot request #1
+                    run = await SerialDeleteAsync(currentContactIndex, contact, hubSpotContact, hubSpotContacts.Length, run); // HubSpot request #2
                     contact.Email = contact.Properties.First(p => p.Name == "email").Value; // reset email to the existing one and re-run it
-                    run = SerialUpdate(currentContactIndex, contact, hubSpotContacts.Length, run); // HubSpot request #3
+                    run = await SerialUpdateAsync(currentContactIndex, contact, hubSpotContacts.Length, run); // HubSpot request #3
 
                     PumpTheBreaksEveryNRequestsToAvoid429Exceptions(reconciliationIteration * requestsPerReconciliation, requestsPerSecond);
 
@@ -229,9 +230,9 @@ More details will be available in the serial processing logs.");
             }
         }
 
-        private TDto SerialGet<TDto>(SerialHubSpotContact hubSpotContact, SerialSyncResult run)
+        private async Task<TDto> SerialGetAsync<TDto>(SerialHubSpotContact hubSpotContact, SerialSyncResult run)
         {
-            var response = _http.Get($"contacts/v1/contact/email/{hubSpotContact.Email}/profile?hapikey={_hubSpotApiKey}&property=vid");
+            var response = await _http.GetAsync($"contacts/v1/contact/email/{hubSpotContact.Email}/profile?hapikey={_hubSpotApiKey}&property=vid");
             run.GetCount++;
             var dto = default(TDto);
 
@@ -239,7 +240,7 @@ More details will be available in the serial processing logs.");
             {
                 case HttpStatusCode.OK: // 200; update only endpoint
                     _logger.LogInformation($"Retrieved: contact {hubSpotContact.Email}.\r\njson: {dto}");
-                    dto = _http.GetResponseContent<TDto>(response);
+                    dto = await _http.GetResponseContentAsync<TDto>(response);
                     break;
                 case HttpStatusCode.NotFound: // 404; contact with supplied email address does not exist
                     _logger.LogWarning($"Not Found. Contact does not exist\r\njson: {_serializer.Serialize(hubSpotContact)}");
@@ -252,12 +253,12 @@ More details will be available in the serial processing logs.");
             return dto;
         }
 
-        private SerialSyncResult SerialDelete(int currentContactIndex, SerialHubSpotContact hubSpotContact, HubSpotVidResult hubSpotVidResult, int contactCount, SerialSyncResult run)
+        private async Task<SerialSyncResult> SerialDeleteAsync(int currentContactIndex, SerialHubSpotContact hubSpotContact, HubSpotVidResult hubSpotVidResult, int contactCount, SerialSyncResult run)
         {
             if (hubSpotVidResult == null)
                 return run;
 
-            var response = _http.Delete($"contacts/v1/contact/vid/{hubSpotVidResult.ContactVid}?hapikey={_hubSpotApiKey}");
+            var response = await _http.DeleteAsync($"contacts/v1/contact/vid/{hubSpotVidResult.ContactVid}?hapikey={_hubSpotApiKey}");
             run.DeleteCount++;
 
             switch (response.StatusCode)
@@ -269,20 +270,20 @@ More details will be available in the serial processing logs.");
                     _logger.LogWarning($"No contact in HubSpot to delete.\r\njson: {_serializer.Serialize(hubSpotContact)}");
                     break;
                 default: // contact was rejected for update (application exception)
-                    SetFailureData(run, response, hubSpotContact, contactCount, currentContactIndex);
+                    await SetFailureData(run, response, hubSpotContact, contactCount, currentContactIndex);
                     break;
             }
 
             return run;
         }
 
-        private void SetFailureData(SerialSyncResult run, HttpResponseMessage response, IHubSpotContact hubSpotContact, int contactLength, int currentContactIndex)
+        private async Task SetFailureData(SerialSyncResult run, HttpResponseMessage response, IHubSpotContact hubSpotContact, int contactLength, int currentContactIndex)
         {
             run.FailureCount++;
             var failure = new SerialSyncFailure
             {
                 HttpStatusCode = response.StatusCode,
-                Exception = _http.GetResponseContent<HubSpotException>(response),
+                Exception = await _http.GetResponseContentAsync<HubSpotException>(response),
                 HubSpotContact = hubSpotContact
             };
             run.Failures.Add(failure);

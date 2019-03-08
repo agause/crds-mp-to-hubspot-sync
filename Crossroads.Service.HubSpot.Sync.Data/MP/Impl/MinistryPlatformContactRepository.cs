@@ -138,15 +138,12 @@ namespace Crossroads.Service.HubSpot.Sync.Data.MP.Impl
             }
         }
 
-        private List<JObject> FetchData(string storedProcedureName, Dictionary<string, object> storedProcedureParameters = null)
-        {
-            var token = _apiUserRepository.GetDefaultApiClientToken(); // dp_Audit_Logs.Date_Time stores Utc
-            return _mpRestBuilder.NewRequestBuilder()
-                .WithAuthenticationToken(token)
+        private List<JObject> FetchData(string storedProcedureName, Dictionary<string, object> storedProcedureParameters = null) =>
+            _mpRestBuilder.NewRequestBuilder()
+                .WithAuthenticationToken(_apiUserRepository.GetDefaultApiClientToken())
                 .Build()
                 .ExecuteStoredProc<JObject>(storedProcedureName, storedProcedureParameters ?? new Dictionary<string, object>())
-                .FirstOrDefault(); // unwraps/accommodates SQL Server's ability return multiple result sets in a single query represented as a list of lists
-        }
+                .FirstOrDefault();
 
         private void Log(string storedProcedureName, DateTime lastSuccessfulSyncDate, string logMessage)
         {

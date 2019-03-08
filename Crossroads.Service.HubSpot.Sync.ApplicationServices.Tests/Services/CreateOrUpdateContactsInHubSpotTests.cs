@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
@@ -81,9 +82,9 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         private void SetUpMockDefinitions(HttpStatusCode httpStatusCode, bool isNew = false)
         {
             var httpResponseMessage = new HttpResponseMessage(httpStatusCode);
-            _httpMock.Setup(http => http.Post(It.IsAny<string>(), It.IsAny<BulkHubSpotContact[]>())).Returns(httpResponseMessage);
-            _httpMock.Setup(http => http.Post(It.IsAny<string>(), It.IsAny<SerialHubSpotContact>())).Returns(httpResponseMessage);
-            _httpMock.Setup(h => h.GetResponseContent<HubSpotException>(It.IsAny<HttpResponseMessage>())).Returns(new HubSpotException()); // for bulk/serial
+            _httpMock.Setup(http => http.PostAsync(It.IsAny<string>(), It.IsAny<BulkHubSpotContact[]>())).Returns(Task.FromResult(httpResponseMessage));
+            _httpMock.Setup(http => http.PostAsync(It.IsAny<string>(), It.IsAny<SerialHubSpotContact>())).Returns(Task.FromResult(httpResponseMessage));
+            _httpMock.Setup(h => h.GetResponseContentAsync<HubSpotException>(It.IsAny<HttpResponseMessage>())).Returns(Task.FromResult(new HubSpotException())); // for bulk/serial
             _serializerMock.Setup(s => s.Serialize(It.IsAny<IHubSpotContact>())).Returns("");
         }
 
@@ -95,7 +96,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
             result.BatchCount.Should().Be(expectedBatchCount);
 
             // assert behavior
-            _httpMock.Verify(http => http.Post(It.IsAny<string>(), It.IsAny<BulkHubSpotContact[]>()), Times.Exactly(expectedBatchCount));
+            _httpMock.Verify(http => http.PostAsync(It.IsAny<string>(), It.IsAny<BulkHubSpotContact[]>()), Times.Exactly(expectedBatchCount));
         }
 
         private void HappyOrSadPathTruths(SerialSyncResult result, SerialHubSpotContact[] hubSpotContacts, int successCount, int failureCount)
@@ -103,7 +104,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
             HappyOrSadPathTruths(result, hubSpotContacts.Length, hubSpotContacts.Length, successCount, failureCount);
 
             // assert behavior
-            _httpMock.Verify(http => http.Post(It.IsAny<string>(), It.IsAny<SerialHubSpotContact>()), Times.Exactly(hubSpotContacts.Length));
+            _httpMock.Verify(http => http.PostAsync(It.IsAny<string>(), It.IsAny<SerialHubSpotContact>()), Times.Exactly(hubSpotContacts.Length));
         }
 
         private void HappyOrSadPathTruths(ISyncResult result, int contactCount, int numberOfRequests, int successCount, int failureCount)
@@ -124,13 +125,13 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         [InlineData(3, 3)]
         [InlineData(2, 5)]
         [InlineData(1, 9)]
-        public void BulkSyncResult_HappyPath(int batchSize, int expectedBatchCount)
+        public async Task BulkSyncResult_HappyPath(int batchSize, int expectedBatchCount)
         {
             // arrange
             SetUpMockDefinitions(HttpStatusCode.Accepted);
 
             // act
-            var result = _fixture.BulkSync(_bulkHubSpotContacts, batchSize: batchSize);
+            var result = await _fixture.BulkSync(_bulkHubSpotContacts, batchSize: batchSize);
 
             // assert data
             HappyOrSadPathTruths(result, _bulkHubSpotContacts, expectedBatchCount, successCount: _bulkHubSpotContacts.Length, failureCount: 0); // data and behavior
@@ -140,13 +141,13 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         [InlineData(HttpStatusCode.BadRequest, 9, 1)]
         [InlineData(HttpStatusCode.Unauthorized, 1, 9)]
         [InlineData(HttpStatusCode.InternalServerError, 3, 3)]
-        public void BulkSyncResult_When_All_Requests_Have_A_Negative_Result(HttpStatusCode httpStatusCode, int batchSize, int expectedBatchCount)
+        public async Task BulkSyncResult_When_All_Requests_Have_A_Negative_Result(HttpStatusCode httpStatusCode, int batchSize, int expectedBatchCount)
         {
             // arrange
             SetUpMockDefinitions(httpStatusCode);
 
             // act
-            var result = _fixture.BulkSync(_bulkHubSpotContacts, batchSize: batchSize);
+            var result = await _fixture.BulkSync(_bulkHubSpotContacts, batchSize: batchSize);
 
             // assert data
             result.FailedBatches.Count.Should().Be(expectedBatchCount);
@@ -155,16 +156,14 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         }
 
         [Fact]
-        public void BulkSyncResult_When_Request_Exception_Occurs_Let_It_Propagate()
+        public async Task BulkSyncResult_When_Request_Exception_Occurs_Let_It_Propagate()
         {   // if we can't connect to HubSpot, let's hope the failure is temporal and try again later.
             // arrange
             SetUpMockDefinitions(HttpStatusCode.Ambiguous);
-            _httpMock.Setup(http => http.Post(It.IsAny<string>(), It.IsAny<BulkHubSpotContact[]>())).Throws<HttpRequestException>();
+            _httpMock.Setup(http => http.PostAsync(It.IsAny<string>(), It.IsAny<BulkHubSpotContact[]>())).Throws<HttpRequestException>();
 
             // act
-            Action action = () => _fixture.BulkSync(_bulkHubSpotContacts);
-
-            action.Should().Throw<HttpRequestException>();
+            await Assert.ThrowsAsync<HttpRequestException>(async () => await _fixture.BulkSync(_bulkHubSpotContacts));
         }
 
         [Theory]
@@ -172,14 +171,14 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         [InlineData(8)]
         [InlineData(7)]
         [InlineData(6)]
-        public void SerialCreateResult_HappyPath(int numberOfContactsToSync)
+        public async Task SerialCreateResult_HappyPath(int numberOfContactsToSync)
         {
             // arrange
             var contacts = _serialHubSpotContacts.Take(numberOfContactsToSync).ToArray();
             SetUpMockDefinitions(HttpStatusCode.OK);
 
             // act
-            var result = _fixture.SerialCreate(contacts);
+            var result = await _fixture.SerialCreateAsync(contacts);
 
             // assert data
             HappyOrSadPathTruths(result, contacts, successCount: contacts.Length, failureCount: 0); // data and behavior
@@ -190,14 +189,14 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         [InlineData(8)]
         [InlineData(7)]
         [InlineData(6)]
-        public void SerialUpdateResult_HappyPath(int numberOfContactsToSync)
+        public async Task SerialUpdateResult_HappyPath(int numberOfContactsToSync)
         {
             // arrange
             var contacts = _serialHubSpotContacts.Take(numberOfContactsToSync).ToArray();
             SetUpMockDefinitions(HttpStatusCode.NoContent);
 
             // act
-            var result = _fixture.SerialUpdate(contacts);
+            var result = await _fixture.SerialUpdateAsync(contacts);
 
             // assert data
             HappyOrSadPathTruths(result, contacts, successCount: contacts.Length, failureCount: 0); // data and behavior
@@ -208,14 +207,14 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         [InlineData(HttpStatusCode.Unauthorized, 8)]
         [InlineData(HttpStatusCode.InternalServerError, 7)]
         [InlineData(HttpStatusCode.Forbidden, 6)]
-        public void SerialCreateResult_When_All_Requests_Have_A_Negative_Result(HttpStatusCode httpStatusCode, int numberOfContactsToSync)
+        public async Task SerialCreateResult_When_All_Requests_Have_A_Negative_Result(HttpStatusCode httpStatusCode, int numberOfContactsToSync)
         {
             // arrange
             var contacts = _serialHubSpotContacts.Take(numberOfContactsToSync).ToArray();
             SetUpMockDefinitions(httpStatusCode);
 
             // act
-            var result = _fixture.SerialCreate(contacts);
+            var result = await _fixture.SerialCreateAsync(contacts);
 
             // assert data
             result.Failures.Count.Should().Be(contacts.Length);
@@ -228,14 +227,14 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         [InlineData(HttpStatusCode.Unauthorized, 8)]
         [InlineData(HttpStatusCode.InternalServerError, 7)]
         [InlineData(HttpStatusCode.Forbidden, 6)]
-        public void SerialUpdateResult_When_All_Requests_Have_A_Negative_Result(HttpStatusCode httpStatusCode, int numberOfContactsToSync)
+        public async Task SerialUpdateResult_When_All_Requests_Have_A_Negative_Result(HttpStatusCode httpStatusCode, int numberOfContactsToSync)
         {
             // arrange
             var contacts = _serialHubSpotContacts.Take(numberOfContactsToSync).ToArray();
             SetUpMockDefinitions(httpStatusCode);
 
             // act
-            var result = _fixture.SerialUpdate(contacts);
+            var result = await _fixture.SerialUpdateAsync(contacts);
 
             // assert data
             result.Failures.Count.Should().Be(contacts.Length);
@@ -244,13 +243,13 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         }
 
         [Fact]
-        public void SerialCreateResult_When_An_Email_Address_Already_Exists()
+        public async Task SerialCreateResult_When_An_Email_Address_Already_Exists()
         {
             // arrange
             SetUpMockDefinitions(HttpStatusCode.Conflict);
 
             // act
-            var result = _fixture.SerialCreate(_serialHubSpotContacts);
+            var result = await _fixture.SerialCreateAsync(_serialHubSpotContacts);
 
             // assert data
             result.Failures.Count.Should().Be(0);
@@ -261,13 +260,13 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         }
 
         [Fact]
-        public void SerialUpdateResult_When_An_Email_Address_Does_Not_Exist()
+        public async Task SerialUpdateResult_When_An_Email_Address_Does_Not_Exist()
         {
             // arrange
             SetUpMockDefinitions(HttpStatusCode.NotFound);
 
             // act
-            var result = _fixture.SerialUpdate(_serialHubSpotContacts);
+            var result = await _fixture.SerialUpdateAsync(_serialHubSpotContacts);
 
             // assert data
             result.Failures.Count.Should().Be(0);
@@ -278,29 +277,23 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
         }
 
         [Fact]
-        public void SerialCreateResult_When_Request_Exception_Occurs_Let_It_Propagate()
+        public async Task SerialCreateResult_When_Request_Exception_Occurs_Let_It_Propagate()
         {   // if we can't connect to HubSpot, let's hope the failure is temporal and try again later.
             // arrange
             SetUpMockDefinitions(HttpStatusCode.Ambiguous);
-            _httpMock.Setup(http => http.Post(It.IsAny<string>(), It.IsAny<SerialHubSpotContact>())).Throws<HttpRequestException>();
+            _httpMock.Setup(http => http.PostAsync(It.IsAny<string>(), It.IsAny<SerialHubSpotContact>())).Throws<HttpRequestException>();
 
-            // act
-            Action action = () => _fixture.SerialCreate(_serialHubSpotContacts);
-
-            action.Should().Throw<HttpRequestException>();
+            await Assert.ThrowsAsync<HttpRequestException>(async () => await _fixture.SerialCreateAsync(_serialHubSpotContacts));
         }
 
         [Fact]
-        public void SerialUpdateResult_When_Request_Exception_Occurs_Let_It_Propagate()
+        public async Task SerialUpdateResult_When_Request_Exception_Occurs_Let_It_Propagate()
         {   // if we can't connect to HubSpot, let's hope the failure is temporal and try again later.
             // arrange
             SetUpMockDefinitions(HttpStatusCode.Ambiguous);
-            _httpMock.Setup(http => http.Post(It.IsAny<string>(), It.IsAny<SerialHubSpotContact>())).Throws<HttpRequestException>();
+            _httpMock.Setup(http => http.PostAsync(It.IsAny<string>(), It.IsAny<SerialHubSpotContact>())).Throws<HttpRequestException>();
 
-            // act
-            Action action = () => _fixture.SerialUpdate(_serialHubSpotContacts);
-
-            action.Should().Throw<HttpRequestException>();
+            await Assert.ThrowsAsync<HttpRequestException>(async () => await _fixture.SerialUpdateAsync(_serialHubSpotContacts));
         }
     }
 }

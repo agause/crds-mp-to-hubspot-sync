@@ -1,4 +1,5 @@
-﻿using Crossroads.Service.HubSpot.Sync.Data.HubSpot.Models.Request;
+﻿using System.Threading.Tasks;
+using Crossroads.Service.HubSpot.Sync.Data.HubSpot.Models.Request;
 using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto;
 
 namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services
@@ -10,17 +11,17 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services
         /// </summary>
         /// <param name="hubSpotContacts">List of Ministry Platform contacts to sync to HubSpot.</param>
         /// <param name="batchSize">Number of contacts to send to HubSpot per request.</param>
-        BulkSyncResult BulkSync(BulkHubSpotContact[] hubSpotContacts, int batchSize = 100);
+        Task<BulkSyncResult> BulkSync(BulkHubSpotContact[] hubSpotContacts, int batchSize = 100);
 
         /// <summary>
         /// Creates contacts serially.
         /// </summary>
-        SerialSyncResult SerialCreate(SerialHubSpotContact[] hubSpotContacts);
+        Task<SerialSyncResult> SerialCreateAsync(SerialHubSpotContact[] hubSpotContacts);
 
         /// <summary>
         /// Updates contacts serially. Can also update email addresses.
         /// </summary>
-        SerialSyncResult SerialUpdate(SerialHubSpotContact[] hubSpotContacts);
+        Task<SerialSyncResult> SerialUpdateAsync(SerialHubSpotContact[] hubSpotContacts);
 
         /// <summary>
         /// Responsible for deleting the contact record of the old email address that is not able to be updated
@@ -33,6 +34,6 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services
         /// 2) Delete contact by VID (acquired by old email address)
         /// 3) Update contact in HubSpot with new email address in both the url and the post body
         /// </summary>
-        SerialSyncResult ReconcileConflicts(SerialHubSpotContact[] hubSpotContacts);
+        Task<SerialSyncResult> ReconcileConflicts(SerialHubSpotContact[] hubSpotContacts);
     }
 }
