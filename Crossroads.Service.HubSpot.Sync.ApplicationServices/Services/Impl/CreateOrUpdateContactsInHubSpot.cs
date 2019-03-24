@@ -91,10 +91,8 @@ More details will be available in the serial processing logs.");
             }
         }
 
-        private int CalculateNumberOfBatches(int numberOfContacts, int prescribedBatchSize)
-        {
-            return (numberOfContacts / prescribedBatchSize) + (numberOfContacts % prescribedBatchSize > 0 ? 1 : 0);
-        }
+        private int CalculateNumberOfBatches(int numberOfContacts, int prescribedBatchSize) =>
+            (numberOfContacts / prescribedBatchSize) + (numberOfContacts % prescribedBatchSize > 0 ? 1 : 0);
 
         /// <summary>
         /// https://developers.hubspot.com/docs/methods/contacts/create_contact
@@ -159,33 +157,6 @@ More details will be available in the serial processing logs.");
             }
         }
 
-        private async Task<SerialSyncResult> SerialUpdateAsync(int currentContactIndex, SerialHubSpotContact hubSpotContact, int contactCount, SerialSyncResult run)
-        {
-            var response = await _http.PostAsync($"contacts/v1/contact/email/{hubSpotContact.Email}/profile?hapikey={_hubSpotApiKey}", hubSpotContact);
-
-            switch (response.StatusCode)
-            {
-                case HttpStatusCode.NoContent: // 204; update only endpoint
-                    _logger.LogInformation($"Updated: contact {currentContactIndex + 1} of {contactCount}");
-                    run.SuccessCount++;
-                    run.UpdateCount++;
-                    break;
-                case HttpStatusCode.NotFound: // 404; update only endpoint; contact does not exist
-                    run.EmailAddressesDoNotExist.Add(hubSpotContact);
-                    run.EmailAddressDoesNotExistCount++;
-                    break;
-                case HttpStatusCode.Conflict: // 409; update endpoint; already exists -- when a contact attempts to update their email address to one already claimed
-                    run.EmailAddressesAlreadyExist.Add(hubSpotContact);
-                    run.EmailAddressAlreadyExistsCount++;
-                    break;
-                default: // contact was rejected for update (application exception)
-                    await SetFailureData(run, response, hubSpotContact, contactCount, currentContactIndex);
-                    break;
-            }
-
-            return run;
-        }
-
         /// <summary>
         /// Responsible for deleting the contact record of the old email address that is not able to be updated
         /// to the "new" email address due to the fact that the email address we wish to switch to already exists.
@@ -228,6 +199,33 @@ More details will be available in the serial processing logs.");
             {
                 run.Execution.FinishUtc = _clock.UtcNow;
             }
+        }
+
+        private async Task<SerialSyncResult> SerialUpdateAsync(int currentContactIndex, SerialHubSpotContact hubSpotContact, int contactCount, SerialSyncResult run)
+        {
+            var response = await _http.PostAsync($"contacts/v1/contact/email/{hubSpotContact.Email}/profile?hapikey={_hubSpotApiKey}", hubSpotContact);
+
+            switch (response.StatusCode)
+            {
+                case HttpStatusCode.NoContent: // 204; update only endpoint
+                    _logger.LogInformation($"Updated: contact {currentContactIndex + 1} of {contactCount}");
+                    run.SuccessCount++;
+                    run.UpdateCount++;
+                    break;
+                case HttpStatusCode.NotFound: // 404; update only endpoint; contact does not exist
+                    run.EmailAddressesDoNotExist.Add(hubSpotContact);
+                    run.EmailAddressDoesNotExistCount++;
+                    break;
+                case HttpStatusCode.Conflict: // 409; update endpoint; already exists -- when a contact attempts to update their email address to one already claimed
+                    run.EmailAddressesAlreadyExist.Add(hubSpotContact);
+                    run.EmailAddressAlreadyExistsCount++;
+                    break;
+                default: // contact was rejected for update (application exception)
+                    await SetFailureData(run, response, hubSpotContact, contactCount, currentContactIndex);
+                    break;
+            }
+
+            return run;
         }
 
         private async Task<TDto> SerialGetAsync<TDto>(SerialHubSpotContact hubSpotContact, SerialSyncResult run)

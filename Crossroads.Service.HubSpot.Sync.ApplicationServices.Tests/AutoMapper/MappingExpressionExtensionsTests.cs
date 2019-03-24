@@ -112,7 +112,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.AutoMapper
         [Fact]
         public void should_yield_new_registration_mp_dto_into_hubspot_properties_collection()
         {
-            var result = MappingExpressionExtensions.ReflectToContactProperties(_newContact);
+            var result = MappingExpressionExtensions.ReflectToHubSpotContactProperties(_newContact);
             result.First(item => item.Name == "community").Value.Should().Be("Florence");
             result.First(item => item.Name == "email").Value.Should().Be("luke@dotdash.net");
             result.First(item => item.Name == "firstname").Value.Should().Be("Luke");
@@ -147,7 +147,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.AutoMapper
         [Fact]
         public void should_yield_core_update_mp_dto_into_hubspot_properties_collection()
         {
-            var result = MappingExpressionExtensions.ReflectToContactProperties(_updatedContact);
+            var result = MappingExpressionExtensions.ReflectToHubSpotContactProperties(_updatedContact);
             result.First(item => item.Name == "community").Value.Should().Be("Oakley");
             result.First(item => item.Name == "email").Value.Should().Be("new@email.com");
             result.First(item => item.Name == "firstname").Value.Should().Be("Jason");
@@ -182,7 +182,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.AutoMapper
         [Fact]
         public void should_yield_age_grade_mp_dto_into_hubspot_properties_collection()
         {
-            var result = MappingExpressionExtensions.ReflectToContactProperties(_ageGradeCounts);
+            var result = MappingExpressionExtensions.ReflectToHubSpotContactProperties(_ageGradeCounts);
             result.First(item => item.Name == "community").Value.Should().Be("Mason");
             result.First(item => item.Name == "email").Value.Should().Be("j@p.io");
             result.First(item => item.Name == "firstname").Value.Should().Be("Jake");

@@ -1,14 +1,15 @@
 ﻿using Crossroads.Service.HubSpot.Sync.ApplicationServices.Configuration;
 using Crossroads.Service.HubSpot.Sync.ApplicationServices.Logging;
 using Crossroads.Service.HubSpot.Sync.ApplicationServices.Services;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto;
+using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Enum;
 using DalSoft.Hosting.BackgroundQueue;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
-using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing;
-using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto;
-using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Enum;
+using System.Threading.Tasks;
 
 namespace Crossroads.Service.HubSpot.Sync.App.Controllers
 {
@@ -44,14 +45,14 @@ namespace Crossroads.Service.HubSpot.Sync.App.Controllers
 
         [HttpPost]
         [Route("execute")]
-        public IActionResult SyncMpContactsToHubSpot()
+        public async Task<IActionResult> SyncMpContactsToHubSpot()
         {
             using (_logger.BeginScope(AppEvent.Web.SyncMpContactsToHubSpot))
             {
                 try
                 {
                     var clickHereToViewProgress = $@"Click <a target=""blank"" href=""{Url.Action("ViewActivityState")}"">here</a> to view progress.";
-                    var activityProgress = _configurationService.GetCurrentActivityProgress();
+                    var activityProgress = await _configurationService.GetCurrentActivityProgressAsync();
                     if (activityProgress.ActivityState == ActivityState.Processing)
                         return Content($"The HubSpot sync job is already processing. {clickHereToViewProgress}", "text/html");
 
@@ -68,13 +69,13 @@ namespace Crossroads.Service.HubSpot.Sync.App.Controllers
 
         [HttpGet]
         [Route("state")]
-        public IActionResult ViewActivityState()
+        public async Task<IActionResult> ViewActivityState()
         {
             using (_logger.BeginScope(AppEvent.Web.ViewJobProcessingState))
             {
                 try
                 {
-                    var progress = _configurationService.GetCurrentActivityProgress();
+                    var progress = await _configurationService.GetCurrentActivityProgressAsync();
                     return Content(progress.ToHtml(), "text/html");
                 }
                 catch (Exception exc)
@@ -87,13 +88,13 @@ namespace Crossroads.Service.HubSpot.Sync.App.Controllers
 
         [HttpPost]
         [Route("state")]
-        public IActionResult ResetActivityState()
+        public async Task<IActionResult> ResetActivityState()
         {
             using (_logger.BeginScope(AppEvent.Web.ResetJobProcessingState))
             {
                 try
                 {
-                    _jobRepository.PersistActivityProgress(new ActivityProgress {ActivityState = ActivityState.Idle});
+                    await _jobRepository.PersistActivityProgressAsync(new ActivityProgress {ActivityState = ActivityState.Idle});
                     return Content($"Activity state has been reset to 'Idle'.", "text/html");
                 }
                 catch (Exception exc)
@@ -106,13 +107,13 @@ namespace Crossroads.Service.HubSpot.Sync.App.Controllers
 
         [HttpGet]
         [Route("dates")]
-        public IActionResult ViewLastSyncDates()
+        public async Task<IActionResult> ViewLastSyncDates()
         {
             using (_logger.BeginScope(AppEvent.Web.ViewLastSuccessfulSyncDates))
             {
                 try
                 {
-                    var dates = _configurationService.GetLastSuccessfulOperationDates();
+                    var dates = await _configurationService.GetLastSuccessfulOperationDatesAsync();
                     return Content(
                         $@"<strong>Last successful operation dates</strong> (listed by order of execution)<br/>
                         Age/Grade process date: {dates.AgeAndGradeProcessDate.ToLocalTime()}<br />
@@ -131,13 +132,13 @@ namespace Crossroads.Service.HubSpot.Sync.App.Controllers
 
         [HttpGet]
         [Route("activity/{activityid}")]
-        public IActionResult ViewActivity(string activityId)
+        public async Task<IActionResult> ViewActivity(string activityId)
         {
             using (_logger.BeginScope(AppEvent.Web.ViewSyncActivity))
             {
                 try
                 {
-                    return Content(_jobRepository.GetActivity(activityId), "application/json");
+                    return Content(await _jobRepository.GetActivityAsync(activityId), "application/json");
                 }
                 catch (Exception exc)
                 {
@@ -149,14 +150,14 @@ namespace Crossroads.Service.HubSpot.Sync.App.Controllers
 
         [HttpGet]
         [Route("viewall")] // maybe create a view later
-        public IActionResult ViewActivities(int limit = 144)
+        public async Task<IActionResult> ViewActivities(int limit = 144)
         {
             using (_logger.BeginScope(AppEvent.Web.ViewAllSyncActivities))
             {
                 try
                 {
-                    var activitiesMarkedUp = _jobRepository.GetActivityIds(limit)
-                        .ToDictionary(activityId => DateTime.Parse(activityId.Split('_')[1]), activityId => Url.Action("ViewActivity", new { activityId }))
+                    var activityIds = await _jobRepository.GetActivityIdsAsync(limit);
+                    var activitiesMarkedUp = activityIds.ToDictionary(activityId => DateTime.Parse(activityId.Split('_')[1]), activityId => Url.Action("ViewActivity", new { activityId }))
                         .Select(kvp => $"<a target=\"_blank\" href=\"{kvp.Value}\">{kvp.Key.ToLocalTime()}</a>");
                     return Content(string.Join("<br/>", activitiesMarkedUp), "text/html" );
                 }
@@ -170,16 +171,16 @@ namespace Crossroads.Service.HubSpot.Sync.App.Controllers
 
         [HttpGet]
         [Route("viewlatest")]
-        public IActionResult ViewLatestActivity()
+        public async Task<IActionResult> ViewLatestActivity()
         {
             using (_logger.BeginScope(AppEvent.Web.ViewMostRecentSyncActivity))
             {
                 try
                 {
-                    if (_configurationService.GetCurrentActivityProgress().ActivityState == ActivityState.Processing)
+                    if ((await _configurationService.GetCurrentActivityProgressAsync()).ActivityState == ActivityState.Processing)
                         return Content("Job is currently processing. Refresh later to see the latest sync results.");
 
-                    return Content(_jobRepository.GetMostRecentActivity(), "application/json");
+                    return Content(await _jobRepository.GetMostRecentActivity(), "application/json");
                 }
                 catch (Exception exc)
                 {
@@ -191,13 +192,13 @@ namespace Crossroads.Service.HubSpot.Sync.App.Controllers
 
         [HttpGet]
         [Route("hubspotapirequestcount")]
-        public IActionResult ViewHubSpotApiRequestCount()
+        public async Task<IActionResult> ViewHubSpotApiRequestCount()
         {
             using (_logger.BeginScope(AppEvent.Web.ViewHubSpotApiRequestCount))
             {
                 try
                 {
-                    return Json(_jobRepository.GetHubSpotApiDailyRequestCount());
+                    return Json(await _jobRepository.GetHubSpotApiDailyRequestCountAsync());
                 }
                 catch (Exception exc)
                 {

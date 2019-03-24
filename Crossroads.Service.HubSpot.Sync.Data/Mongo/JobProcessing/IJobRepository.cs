@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto;
 
 namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing
@@ -9,20 +10,20 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing
     /// </summary>
     public interface IJobRepository
     {
-        OperationDates PersistLastSuccessfulOperationDates(OperationDates operationDates);
+        Task<OperationDates> PersistLastSuccessfulOperationDatesAsync(OperationDates operationDates);
 
-        void PersistActivityProgress(ActivityProgress activityProgress);
+        Task PersistActivityProgressAsync(ActivityProgress activityProgress);
 
-        void PersistActivity(Activity activity);
+        Task PersistActivityAsync(Activity activity);
 
-        void PersistHubSpotApiDailyRequestCount(int mostRecentRequestCount, DateTime activityDateTime);
+        Task PersistHubSpotApiDailyRequestCountAsync(int mostRecentRequestCount, DateTime activityDateTime);
 
-        List<HubSpotApiDailyRequestCountKeyValue> GetHubSpotApiDailyRequestCount();
+        Task<List<HubSpotApiDailyRequestCountKeyValue>> GetHubSpotApiDailyRequestCountAsync();
 
-        string GetActivity(string syncJobActivityId);
+        Task<string> GetActivityAsync(string syncJobActivityId);
 
-        string GetMostRecentActivity();
+        Task<string> GetMostRecentActivity();
 
-        List<string> GetActivityIds(int limit);
+        Task<List<string>> GetActivityIdsAsync(int limit);
     }
 }

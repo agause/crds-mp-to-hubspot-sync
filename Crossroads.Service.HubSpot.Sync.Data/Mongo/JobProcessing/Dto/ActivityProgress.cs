@@ -8,7 +8,7 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto
 {
     /// <summary>
     /// Commenting mostly for visibility into the fact that this class is a bit busier than its contemporaries.
-    /// Newing this object up primes the Operations property with all OperationName values and a <see cref="OperationState"/>
+    /// Newing this object up primes the <see cref="Operations"/> property with all OperationName values and a <see cref="OperationState"/>
     /// of "<see cref="OperationState.Pending"/>".
     /// </summary>
     public class ActivityProgress : IEmitHtml, IEmitPlainText
@@ -19,7 +19,7 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Dto
         public string Duration { get; set; }
 
         public Dictionary<OperationName, OperationDetail> Operations { get; } =
-            System.Enum.GetValues(typeof(OperationName)) // primes the Operations dictionary on instantiation
+            System.Enum.GetValues(typeof(OperationName)) // primes the Operations dictionary
                 .Cast<OperationName>()
                 .ToDictionary(k => k, v => new OperationDetail { OperationState = OperationState.Pending });
 

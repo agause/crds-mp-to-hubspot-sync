@@ -27,7 +27,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.AutoMapper
         {
             expression
                 .ForMember(hubSpotContact => hubSpotContact.Email, memberOptions => memberOptions.MapFrom(dto => sourceEmailSelector(dto)))
-                .ForMember(hubSpotContact => hubSpotContact.Properties, memberOptions => memberOptions.MapFrom(mpContact => ReflectToContactProperties(mpContact)))
+                .ForMember(hubSpotContact => hubSpotContact.Properties, memberOptions => memberOptions.MapFrom(mpContact => ReflectToHubSpotContactProperties(mpContact)))
                 .AfterMap((mpContact, hubSpotContact) => AddTangentialAttributesToHubSpotProperties(hubSpotContact, environment));
         }
 
@@ -36,9 +36,9 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.AutoMapper
         /// type <see cref="HubSpotContactProperty"/>. Goal is to sacrifice a mite of readability (hard decision to make)
         /// for the sake of simplifying future updates; should we need to add any new properties to the contact,
         /// this will account for any additions where mapping to HubSpot models is concerned. This operates under the
-        /// assumption that all properties expressed in the type's definition have corrollaries in HubSpot.
+        /// assumption that all properties expressed in the type's definition have corollaries in HubSpot.
         /// </summary>
-        public static ISet<HubSpotContactProperty> ReflectToContactProperties<T>(T mpContactDto)
+        public static ISet<HubSpotContactProperty> ReflectToHubSpotContactProperties<TMpContactDto>(TMpContactDto mpContactDto)
         {
             return new HashSet<HubSpotContactProperty>(mpContactDto.GetType()
                 .GetInterfaces()

@@ -6,6 +6,7 @@ using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Impl
 {
@@ -28,11 +29,11 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Impl
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public OperationDates PersistLastSuccessfulOperationDates(OperationDates operationDates)
+        public async Task<OperationDates> PersistLastSuccessfulOperationDatesAsync(OperationDates operationDates)
         {
-            _mongoDatabase
+            await _mongoDatabase
                 .GetCollection<OperationDatesKeyValue>(nameof(OperationDatesKeyValue))
-                .ReplaceOne(
+                .ReplaceOneAsync(
                     filter: Builders<OperationDatesKeyValue>.Filter.Eq("_id", nameof(OperationDatesKeyValue)),
                     replacement: new OperationDatesKeyValue { LastUpdatedUtc = _clock.UtcNow, Value = operationDates },
                     options: new UpdateOptions {IsUpsert = true});
@@ -40,28 +41,28 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Impl
             return operationDates;
         }
 
-        public void PersistActivityProgress(ActivityProgress activityProgress) =>
-            _mongoDatabase
+        public async Task PersistActivityProgressAsync(ActivityProgress activityProgress) =>
+            await _mongoDatabase
                 .GetCollection<ActivityProgressKeyValue>(nameof(ActivityProgressKeyValue))
-                .ReplaceOne(
+                .ReplaceOneAsync(
                     filter: Builders<ActivityProgressKeyValue>.Filter.Eq("_id", nameof(ActivityProgressKeyValue)),
                     replacement: new ActivityProgressKeyValue { LastUpdatedUtc = _clock.UtcNow, Value = activityProgress },
                     options: new UpdateOptions { IsUpsert = true });
 
-        public void PersistActivity(Activity activity)
+        public async Task PersistActivityAsync(Activity activity)
         {
             activity.LastUpdatedUtc = _clock.UtcNow;
             _logger.LogInformation("Storing activity...");
-            _mongoDatabase.GetCollection<Activity>(nameof(Activity)).InsertOne(activity);
+            await _mongoDatabase.GetCollection<Activity>(nameof(Activity)).InsertOneAsync(activity);
         }
 
-        public void PersistHubSpotApiDailyRequestCount(int mostRecentRequestCount, DateTime activityDateTime)
+        public async Task PersistHubSpotApiDailyRequestCountAsync(int mostRecentRequestCount, DateTime activityDateTime)
         {
             var previousRequestStats =
-                _mongoDatabase
+                await _mongoDatabase
                     .GetCollection<HubSpotApiDailyRequestCountKeyValue>(nameof(HubSpotApiDailyRequestCountKeyValue))
                     .Find(kv => kv.Date == activityDateTime.Date)
-                    .FirstOrDefault() ?? new HubSpotApiDailyRequestCountKeyValue();
+                    .FirstOrDefaultAsync() ?? new HubSpotApiDailyRequestCountKeyValue();
             _logger.LogInformation($"Previous request count: {previousRequestStats.Value}");
 
             var toPersist = new HubSpotApiDailyRequestCountKeyValue
@@ -74,41 +75,40 @@ namespace Crossroads.Service.HubSpot.Sync.Data.Mongo.JobProcessing.Impl
 
             _logger.LogInformation($"Current request count: {toPersist.Value}");
 
-            _mongoDatabase
+            await _mongoDatabase
                 .GetCollection<HubSpotApiDailyRequestCountKeyValue>(nameof(HubSpotApiDailyRequestCountKeyValue))
-                .ReplaceOne(
+                .ReplaceOneAsync(
                     filter: Builders<HubSpotApiDailyRequestCountKeyValue>.Filter.Eq(nameof(HubSpotApiDailyRequestCountKeyValue.Date), activityDateTime.Date),
                     replacement: toPersist,
                     options: new UpdateOptions { IsUpsert = true });
         }
 
-        public List<HubSpotApiDailyRequestCountKeyValue> GetHubSpotApiDailyRequestCount() =>
-            _mongoDatabase
+        public async Task<List<HubSpotApiDailyRequestCountKeyValue>> GetHubSpotApiDailyRequestCountAsync() =>
+            await _mongoDatabase
                 .GetCollection<HubSpotApiDailyRequestCountKeyValue>(nameof(HubSpotApiDailyRequestCountKeyValue))
                 .Find(getEverySingleDailyCount => true) // hack to get everything
-                .ToList();
+                .ToListAsync();
 
-        public string GetActivity(string activityId) =>
+        public async Task<string> GetActivityAsync(string activityId) =>
             _jsonSerializer.Serialize(
-                _mongoDatabase
+                await _mongoDatabase
                     .GetCollection<Activity>(nameof(Activity))
                     .Find(kv => kv.Id == activityId)
-                    .FirstOrDefault());
+                    .FirstOrDefaultAsync());
 
-        public string GetMostRecentActivity()
+        public async Task<string> GetMostRecentActivity()
         {
-            var mostRecentActivity = _mongoDatabase.GetCollection<Activity>(nameof(Activity)).Aggregate().Sort("{_id: -1}").First();
-            return GetActivity(mostRecentActivity.Id);
+            var mostRecentActivity = await _mongoDatabase.GetCollection<Activity>(nameof(Activity)).Aggregate().Sort("{_id: -1}").FirstAsync();
+            return await GetActivityAsync(mostRecentActivity.Id);
         }
 
-        public List<string> GetActivityIds(int limit) =>
-            _mongoDatabase
+        public async Task<List<string>> GetActivityIdsAsync(int limit) =>
+            await _mongoDatabase
                 .GetCollection<Activity>(nameof(Activity))
                 .Find(all => true)
                 .Sort("{_id: -1}")
                 .Limit(limit)
                 .Project(activity => activity.Id)
-                .ToEnumerable()
-                .ToList();
+                .ToListAsync();
     }
 }
