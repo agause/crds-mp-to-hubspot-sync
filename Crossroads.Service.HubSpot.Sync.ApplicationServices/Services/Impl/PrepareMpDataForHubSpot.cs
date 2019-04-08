@@ -49,13 +49,13 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
             return _mapper.Map<List<BulkHubSpotContact>>(mpContacts).ToArray();
         }
 
-        public BulkHubSpotContact[] ToBulk(List<BulkSyncFailure> failedBatches)
+        public BulkHubSpotContact[] ToBulk(IList<BulkSyncFailure> failedBatches)
         {
             if(failedBatches == null || failedBatches.Count == decimal.Zero) return new BulkHubSpotContact[0];
             return failedBatches.SelectMany(batch => batch.HubSpotContacts).ToArray();
         }
 
-        public SerialHubSpotContact[] ToSerial(List<BulkSyncFailure> failedBatches)
+        public SerialHubSpotContact[] ToSerial(IList<BulkSyncFailure> failedBatches)
         {
             if (failedBatches == null || failedBatches.Count == decimal.Zero) return new SerialHubSpotContact[0];
             return _mapper.Map<SerialHubSpotContact[]>(failedBatches.SelectMany(batch => batch.HubSpotContacts));

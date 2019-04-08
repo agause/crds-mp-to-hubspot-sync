@@ -145,7 +145,7 @@ More details will be available in the serial processing logs.");
                 for (int currentContactIndex = 0; currentContactIndex < hubSpotContacts.Length; currentContactIndex++)
                 {
                     var contact = hubSpotContacts[currentContactIndex];
-                    await SerialUpdateAsync(currentContactIndex, contact, hubSpotContacts.Length, run);
+                    await UpdateAsync(currentContactIndex, contact, hubSpotContacts.Length, run);
                     PumpTheBreaksEveryNRequestsToAvoid429Exceptions(currentContactIndex + 1);
                 }
 
@@ -183,7 +183,7 @@ More details will be available in the serial processing logs.");
                     var hubSpotContact = await SerialGetAsync<HubSpotVidResult>(contact, run); // HubSpot request #1
                     run = await SerialDeleteAsync(currentContactIndex, contact, hubSpotContact, hubSpotContacts.Length, run); // HubSpot request #2
                     contact.Email = contact.Properties.First(p => p.Name == "email").Value; // reset email to the existing one and re-run it
-                    run = await SerialUpdateAsync(currentContactIndex, contact, hubSpotContacts.Length, run); // HubSpot request #3
+                    run = await UpdateAsync(currentContactIndex, contact, hubSpotContacts.Length, run); // HubSpot request #3
 
                     PumpTheBreaksEveryNRequestsToAvoid429Exceptions(reconciliationIteration * requestsPerReconciliation, requestsPerSecond);
 
@@ -201,7 +201,7 @@ More details will be available in the serial processing logs.");
             }
         }
 
-        private async Task<SerialSyncResult> SerialUpdateAsync(int currentContactIndex, SerialHubSpotContact hubSpotContact, int contactCount, SerialSyncResult run)
+        private async Task<SerialSyncResult> UpdateAsync(int currentContactIndex, SerialHubSpotContact hubSpotContact, int contactCount, SerialSyncResult run)
         {
             var response = await _http.PostAsync($"contacts/v1/contact/email/{hubSpotContact.Email}/profile?hapikey={_hubSpotApiKey}", hubSpotContact);
 

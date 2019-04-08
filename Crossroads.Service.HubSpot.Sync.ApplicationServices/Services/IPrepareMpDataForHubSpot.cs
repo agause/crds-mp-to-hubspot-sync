@@ -32,8 +32,8 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services
 
         BulkHubSpotContact[] Prep(IList<AgeAndGradeGroupCountsForMpContactDto> mpContacts);
 
-        BulkHubSpotContact[] ToBulk(List<BulkSyncFailure> failedBatches);
+        BulkHubSpotContact[] ToBulk(IList<BulkSyncFailure> failedBatches);
 
-        SerialHubSpotContact[] ToSerial(List<BulkSyncFailure> failedBatches);
+        SerialHubSpotContact[] ToSerial(IList<BulkSyncFailure> failedBatches);
     }
 }
