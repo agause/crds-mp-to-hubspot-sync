@@ -12,14 +12,14 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Validation
 {
     public class ActivityValidatorTests
     {
-        private Activity _fixture;
+        private IActivity _activity;
         private readonly ActivityValidator _validator = new ActivityValidator();
         private readonly SerialSyncFailure _badRequestSerialSyncFailure = new SerialSyncFailure { HttpStatusCode = HttpStatusCode.BadRequest };
         private readonly BulkSyncFailure _badRequestBulkSyncFailure = new BulkSyncFailure { HttpStatusCode = HttpStatusCode.BadRequest };
 
         public ActivityValidatorTests()
         {
-            _fixture = new Activity();
+            _activity = new Activity();
         }
 
         [Fact]
@@ -44,9 +44,9 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Validation
         public void AllSyncOperations_WhenNoFailuresExist_ShouldNotHaveValidationError()
         {
             // act/assert
-            _validator.ShouldNotHaveValidationErrorFor(activity => activity.NewRegistrationSyncOperation, _fixture);
-            _validator.ShouldNotHaveValidationErrorFor(activity => activity.CoreContactAttributeSyncOperation, _fixture);
-            _validator.ShouldNotHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _fixture);
+            _validator.ShouldNotHaveValidationErrorFor(activity => activity.NewRegistrationSyncOperation, _activity);
+            _validator.ShouldNotHaveValidationErrorFor(activity => activity.CoreContactAttributeSyncOperation, _activity);
+            _validator.ShouldNotHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _activity);
         }
 
         [Fact]
@@ -60,11 +60,11 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Validation
         private void NewRegistrationHttp400ShouldNotCauseValidationError(Func<IActivity, List<SerialSyncFailure>> failureDetailCollectionSelector)
         {
             // arrange
-            _fixture = new Activity();
-            failureDetailCollectionSelector(_fixture).Add(_badRequestSerialSyncFailure);
+            _activity = new Activity();
+            failureDetailCollectionSelector(_activity).Add(_badRequestSerialSyncFailure);
 
             // act/assert
-            _validator.ShouldNotHaveValidationErrorFor(activity => activity.NewRegistrationSyncOperation, _fixture, RuleSetName.NewRegistrationSync);
+            _validator.ShouldNotHaveValidationErrorFor(activity => activity.NewRegistrationSyncOperation, _activity, RuleSetName.NewRegistrationSync);
         }
 
         [Fact]
@@ -78,11 +78,11 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Validation
         private void CoreContactAttributeHttp400ShouldNotCauseValidationError(Func<IActivity, List<SerialSyncFailure>> failureDetailCollectionSelector)
         {
             // arrange
-            _fixture = new Activity();
-            failureDetailCollectionSelector(_fixture).Add(_badRequestSerialSyncFailure);
+            _activity = new Activity();
+            failureDetailCollectionSelector(_activity).Add(_badRequestSerialSyncFailure);
 
             // act/assert
-            _validator.ShouldNotHaveValidationErrorFor(activity => activity.CoreContactAttributeSyncOperation, _fixture, RuleSetName.CoreContactAttributeSync);
+            _validator.ShouldNotHaveValidationErrorFor(activity => activity.CoreContactAttributeSyncOperation, _activity, RuleSetName.CoreContactAttributeSync);
         }
 
         [Fact]
@@ -97,16 +97,16 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Validation
 
         private void ChildAgeAndGradeHttp400ShouldNotCauseValidationError(Func<IActivity, List<SerialSyncFailure>> failureDetailCollectionSelector)
         {
-            _fixture = new Activity();
-            failureDetailCollectionSelector(_fixture).Add(_badRequestSerialSyncFailure);
-            _validator.ShouldNotHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _fixture, RuleSetName.ChildAgeGradeSync);
+            _activity = new Activity();
+            failureDetailCollectionSelector(_activity).Add(_badRequestSerialSyncFailure);
+            _validator.ShouldNotHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _activity, RuleSetName.ChildAgeGradeSync);
         }
 
         private void ChildAgeAndGradeHttp400ShouldNotCauseValidationError(Func<IActivity, List<BulkSyncFailure>> failureDetailCollectionSelector)
         {
-            _fixture = new Activity();
-            failureDetailCollectionSelector(_fixture).Add(_badRequestBulkSyncFailure);
-            _validator.ShouldNotHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _fixture, RuleSetName.ChildAgeGradeSync);
+            _activity = new Activity();
+            failureDetailCollectionSelector(_activity).Add(_badRequestBulkSyncFailure);
+            _validator.ShouldNotHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _activity, RuleSetName.ChildAgeGradeSync);
         }
 
         [Theory]
@@ -153,48 +153,48 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Validation
             var four01To599SerialFailure = new SerialSyncFailure { HttpStatusCode = httpStatusCode, Exception = hubSpotException};
             var four01To599BulkFailure = new BulkSyncFailure { HttpStatusCode = httpStatusCode, Exception = hubSpotException };
 
-            _fixture.NewRegistrationSyncOperation.SerialCreateResult.Failures.Add(four01To599SerialFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.NewRegistrationSyncOperation, _fixture, RuleSetName.NewRegistrationSync);
+            _activity.NewRegistrationSyncOperation.SerialCreateResult.Failures.Add(four01To599SerialFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.NewRegistrationSyncOperation, _activity, RuleSetName.NewRegistrationSync);
 
-            _fixture = new Activity();
-            _fixture.NewRegistrationSyncOperation.SerialUpdateResult.Failures.Add(four01To599SerialFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.NewRegistrationSyncOperation, _fixture, RuleSetName.NewRegistrationSync);
+            _activity = new Activity();
+            _activity.NewRegistrationSyncOperation.SerialUpdateResult.Failures.Add(four01To599SerialFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.NewRegistrationSyncOperation, _activity, RuleSetName.NewRegistrationSync);
 
-            _fixture = new Activity();
-            _fixture.NewRegistrationSyncOperation.SerialReconciliationResult.Failures.Add(four01To599SerialFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.NewRegistrationSyncOperation, _fixture, RuleSetName.NewRegistrationSync);
+            _activity = new Activity();
+            _activity.NewRegistrationSyncOperation.SerialReconciliationResult.Failures.Add(four01To599SerialFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.NewRegistrationSyncOperation, _activity, RuleSetName.NewRegistrationSync);
 
-            _fixture = new Activity();
-            _fixture.CoreContactAttributeSyncOperation.SerialCreateResult.Failures.Add(four01To599SerialFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.CoreContactAttributeSyncOperation, _fixture, RuleSetName.CoreContactAttributeSync);
+            _activity = new Activity();
+            _activity.CoreContactAttributeSyncOperation.SerialCreateResult.Failures.Add(four01To599SerialFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.CoreContactAttributeSyncOperation, _activity, RuleSetName.CoreContactAttributeSync);
 
-            _fixture = new Activity();
-            _fixture.CoreContactAttributeSyncOperation.SerialUpdateResult.Failures.Add(four01To599SerialFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.CoreContactAttributeSyncOperation, _fixture, RuleSetName.CoreContactAttributeSync);
+            _activity = new Activity();
+            _activity.CoreContactAttributeSyncOperation.SerialUpdateResult.Failures.Add(four01To599SerialFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.CoreContactAttributeSyncOperation, _activity, RuleSetName.CoreContactAttributeSync);
 
-            _fixture = new Activity();
-            _fixture.CoreContactAttributeSyncOperation.SerialReconciliationResult.Failures.Add(four01To599SerialFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.CoreContactAttributeSyncOperation, _fixture, RuleSetName.CoreContactAttributeSync);
+            _activity = new Activity();
+            _activity.CoreContactAttributeSyncOperation.SerialReconciliationResult.Failures.Add(four01To599SerialFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.CoreContactAttributeSyncOperation, _activity, RuleSetName.CoreContactAttributeSync);
 
-            _fixture = new Activity();
-            _fixture.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult1000.FailedBatches.Add(four01To599BulkFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _fixture, RuleSetName.ChildAgeGradeSync);
+            _activity = new Activity();
+            _activity.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult1000.FailedBatches.Add(four01To599BulkFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _activity, RuleSetName.ChildAgeGradeSync);
 
-            _fixture = new Activity();
-            _fixture.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult100.FailedBatches.Add(four01To599BulkFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _fixture, RuleSetName.ChildAgeGradeSync);
+            _activity = new Activity();
+            _activity.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult100.FailedBatches.Add(four01To599BulkFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _activity, RuleSetName.ChildAgeGradeSync);
 
-            _fixture = new Activity();
-            _fixture.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult10.FailedBatches.Add(four01To599BulkFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _fixture, RuleSetName.ChildAgeGradeSync);
+            _activity = new Activity();
+            _activity.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult10.FailedBatches.Add(four01To599BulkFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _activity, RuleSetName.ChildAgeGradeSync);
 
-            _fixture = new Activity();
-            _fixture.ChildAgeAndGradeSyncOperation.SerialCreateResult.Failures.Add(four01To599SerialFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _fixture, RuleSetName.ChildAgeGradeSync);
+            _activity = new Activity();
+            _activity.ChildAgeAndGradeSyncOperation.SerialCreateResult.Failures.Add(four01To599SerialFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _activity, RuleSetName.ChildAgeGradeSync);
 
-            _fixture = new Activity();
-            _fixture.ChildAgeAndGradeSyncOperation.RetryBulkUpdateAsSerialUpdateResult.Failures.Add(four01To599SerialFailure);
-            _validator.ShouldHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _fixture, RuleSetName.ChildAgeGradeSync);
+            _activity = new Activity();
+            _activity.ChildAgeAndGradeSyncOperation.RetryBulkUpdateAsSerialUpdateResult.Failures.Add(four01To599SerialFailure);
+            _validator.ShouldHaveValidationErrorFor(activity => activity.ChildAgeAndGradeSyncOperation, _activity, RuleSetName.ChildAgeGradeSync);
         }
     }
 }
