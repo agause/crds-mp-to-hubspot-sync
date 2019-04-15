@@ -23,13 +23,11 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.AutoMapper
             this IMappingExpression<TMpContact, THubSpotContact> expression,
             Func<TMpContact, string> sourceEmailSelector,
             string environment)
-            where THubSpotContact : IHubSpotContact
-        {
+            where THubSpotContact : IHubSpotContact =>
             expression
                 .ForMember(hubSpotContact => hubSpotContact.Email, memberOptions => memberOptions.MapFrom(dto => sourceEmailSelector(dto)))
                 .ForMember(hubSpotContact => hubSpotContact.Properties, memberOptions => memberOptions.MapFrom(mpContact => ReflectToHubSpotContactProperties(mpContact)))
                 .AfterMap((mpContact, hubSpotContact) => AddTangentialAttributesToHubSpotProperties(hubSpotContact, environment));
-        }
 
         /// <summary>
         /// Reflects over the specified argument to convert its defined object properties to an ISet collection of
@@ -38,30 +36,24 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.AutoMapper
         /// this will account for any additions where mapping to HubSpot models is concerned. This operates under the
         /// assumption that all properties expressed in the type's definition have corollaries in HubSpot.
         /// </summary>
-        public static ISet<HubSpotContactProperty> ReflectToHubSpotContactProperties<TMpContactDto>(TMpContactDto mpContactDto)
-        {
-            return new HashSet<HubSpotContactProperty>(mpContactDto.GetType()
+        public static ISet<HubSpotContactProperty> ReflectToHubSpotContactProperties<TMpContactDto>(TMpContactDto mpContactDto) =>
+            new HashSet<HubSpotContactProperty>(mpContactDto.GetType()
                 .GetInterfaces()
                 .SelectMany(i => i.GetProperties().Select(propertyInfo => BuildContactProperty(propertyInfo, mpContactDto))));
-        }
 
-        private static HubSpotContactProperty BuildContactProperty(PropertyInfo property, object obj)
-        {
-            return new HubSpotContactProperty
+        private static HubSpotContactProperty BuildContactProperty(PropertyInfo property, object obj) =>
+            new HubSpotContactProperty
             {
                 Name = property.Name.ToLowerInvariant(),
                 Value = property.GetValue(obj)?.ToString() ?? string.Empty
             };
-        }
 
         /// <summary>
         /// Ensures the Environment and lifecycle stage are included in the payload to be sent to HubSpot alongside each contact.
         /// </summary>
         /// <param name="hubSpotContact">Contact to which we will assign the integration attributes.</param>
         /// <param name="environmentName">Name of the environment in which the application is executing.</param>
-        public static void AddTangentialAttributesToHubSpotProperties(IHubSpotContact hubSpotContact, string environmentName)
-        {
-            // preserve existing properties (the HashSet will keep the data clean/unique)
+        public static void AddTangentialAttributesToHubSpotProperties(IHubSpotContact hubSpotContact, string environmentName) =>
             hubSpotContact.Properties = new HashSet<HubSpotContactProperty>(hubSpotContact.Properties ?? Enumerable.Empty<HubSpotContactProperty>())
             {
                 // captures reference metadata to pass along when updating HubSpot contact data
@@ -76,6 +68,5 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.AutoMapper
                     Value = "customer"
                 }
             }.ToList();
-        }
     }
 }

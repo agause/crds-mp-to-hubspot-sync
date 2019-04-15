@@ -31,6 +31,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
             activity.CoreContactAttributeSyncOperation.SerialCreateResult.Failures.Add(new SerialSyncFailure { HubSpotContact = new SerialHubSpotContact { Email = "s@g.org" }});
             activity.CoreContactAttributeSyncOperation.SerialReconciliationResult.Failures.Add(new SerialSyncFailure { HubSpotContact = new SerialHubSpotContact { Email = "t@h.org" } });
 
+            activity.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult1000.FailedBatches.AddRange(new[] { new BulkSyncFailure { HubSpotContacts = bulkContacts.ToArray() } });
             activity.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult100.FailedBatches.AddRange(new[] { new BulkSyncFailure { HubSpotContacts = bulkContacts.ToArray() } });
             activity.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult10.FailedBatches.AddRange(new[] { new BulkSyncFailure { HubSpotContacts = bulkContacts.ToArray() } });
             activity.ChildAgeAndGradeSyncOperation.RetryBulkUpdateAsSerialUpdateResult.Failures.Add(new SerialSyncFailure { HubSpotContact = new SerialHubSpotContact { Email = "r@f.org" } });
@@ -42,6 +43,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Test.Services
             activity.CoreContactAttributeSyncOperation.SerialUpdateResult.Failures.ForEach(f => f.HubSpotContact.Should().BeNull());
             activity.CoreContactAttributeSyncOperation.SerialCreateResult.Failures.ForEach(f => f.HubSpotContact.Should().BeNull());
             activity.CoreContactAttributeSyncOperation.SerialReconciliationResult.Failures.ForEach(f => f.HubSpotContact.Should().BeNull());
+            activity.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult1000.FailedBatches.ForEach(batch => batch.HubSpotContacts.Should().BeNull());
             activity.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult100.FailedBatches.ForEach(batch => batch.HubSpotContacts.Should().BeNull());
             activity.ChildAgeAndGradeSyncOperation.BulkUpdateSyncResult10.FailedBatches.ForEach(batch => batch.HubSpotContacts.Should().BeNull());
             activity.ChildAgeAndGradeSyncOperation.RetryBulkUpdateAsSerialUpdateResult.Failures.ForEach(f => f.HubSpotContact.Should().BeNull());

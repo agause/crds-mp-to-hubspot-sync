@@ -16,7 +16,13 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
 {
     public class CreateOrUpdateContactsInHubSpot : ICreateOrUpdateContactsInHubSpot
     {
-        private const int DefaultBatchSize = 100; // per HubSpot documentation: https://developers.hubspot.com/docs/methods/contacts/batch_create_or_update
+        private const ushort MinBatchSize = 10;
+
+        /// <summary>per HubSpot documentation: https://developers.hubspot.com/docs/methods/contacts/batch_create_or_update </summary>
+        private const ushort DefaultBatchSize = 100;
+
+        /// <summary>per HubSpot documentation: https://developers.hubspot.com/docs/methods/contacts/batch_create_or_update </summary>
+        private const ushort MaxBatchSize = 1000;
 
         private readonly IHttpClientFacade _http;
         private readonly IClock _clock;
@@ -35,13 +41,10 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Services.Impl
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        /// <summary>
-        /// https://developers.hubspot.com/docs/methods/contacts/batch_create_or_update
-        /// </summary>
-        /// <param name="hubSpotContacts">Contacts to create/update in HubSpot.</param>
-        /// <param name="batchSize">Number of contacts to send to HubSpot per request.</param>
-        public async Task<BulkSyncResult> BulkSync(BulkHubSpotContact[] hubSpotContacts, int batchSize = DefaultBatchSize)
+        /// <inheritdoc />
+        public async Task<BulkSyncResult> BulkSync(BulkHubSpotContact[] hubSpotContacts, ushort batchSize = DefaultBatchSize)
         {
+            batchSize = RegulateBatchSize(batchSize);
             var run = new BulkSyncResult(_clock.UtcNow)
             {
                 TotalContacts = hubSpotContacts.Length,
@@ -91,12 +94,17 @@ More details will be available in the serial processing logs.");
             }
         }
 
-        private int CalculateNumberOfBatches(int numberOfContacts, int prescribedBatchSize) =>
-            (numberOfContacts / prescribedBatchSize) + (numberOfContacts % prescribedBatchSize > 0 ? 1 : 0);
+        private static ushort RegulateBatchSize(ushort proposedBatchSize)
+        {
+            if(proposedBatchSize > MaxBatchSize)
+                return MaxBatchSize;
 
-        /// <summary>
-        /// https://developers.hubspot.com/docs/methods/contacts/create_contact
-        /// </summary>
+            return proposedBatchSize < MinBatchSize ? MinBatchSize : proposedBatchSize;
+        }
+
+        private int CalculateNumberOfBatches(int numberOfContacts, int batchSize) => (numberOfContacts / batchSize) + (numberOfContacts % batchSize > 0 ? 1 : 0);
+
+        /// <inheritdoc />
         public async Task<SerialSyncResult> SerialCreateAsync(SerialHubSpotContact[] hubSpotContacts)
         {
             var run = new SerialSyncResult(_clock.UtcNow) { TotalContacts = hubSpotContacts.Length };
@@ -134,9 +142,7 @@ More details will be available in the serial processing logs.");
             }
         }
 
-        /// <summary>
-        /// https://developers.hubspot.com/docs/methods/contacts/update_contact-by-email
-        /// </summary>
+        /// <inheritdoc />
         public async Task<SerialSyncResult> SerialUpdateAsync(SerialHubSpotContact[] hubSpotContacts)
         {
             var run = new SerialSyncResult(_clock.UtcNow) { TotalContacts = hubSpotContacts.Length };
@@ -157,18 +163,7 @@ More details will be available in the serial processing logs.");
             }
         }
 
-        /// <summary>
-        /// Responsible for deleting the contact record of the old email address that is not able to be updated
-        /// to the "new" email address due to the fact that the email address we wish to switch to already exists.
-        /// We're ok deleting the existing account b/c Ministry Platform's dp_Users.User_Name field is our source
-        /// of truth, is not nullable and has a unique constraint; so the contact attempting to update to a given
-        /// email address is the true owner of the account. An edge case, but I've seen this happen and would like to
-        /// minimize the cruft created by this app in HubSpot.
-        /// 
-        /// 1) Get contact by old email address
-        /// 2) Delete contact by VID (acquired by old email address)
-        /// 3) Update contact in HubSpot with new email address in both the url and the post body
-        /// </summary>
+        /// <inheritdoc />
         public async Task<SerialSyncResult> ReconcileConflicts(SerialHubSpotContact[] hubSpotContacts)
         {
             const int requestsPerReconciliation = 3, requestsPerSecond = 9;

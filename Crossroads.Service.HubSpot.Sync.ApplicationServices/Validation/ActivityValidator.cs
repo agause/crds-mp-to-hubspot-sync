@@ -18,7 +18,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Validation
         /// 
         /// *** ACTION ITEM ***: Create the property in HubSpot.
         /// </summary>
-        private const string HubSpotPropertyDoesNotExistSearchString = "PROPERTY_DOESNT_EXIST";
+        public const string HubSpotPropertyDoesNotExistSearchString = "PROPERTY_DOESNT_EXIST";
 
         /// <summary>
         /// Contact attribute data is being passed to a HubSpot contact property that does not
@@ -27,7 +27,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Validation
         /// 
         /// *** ACTION ITEM ***: Create the entry in the HubSpot property's static list.
         /// </summary>
-        private const string HubSpotPropertyInvalidOptionSearchString = "INVALID_OPTION";
+        public const string HubSpotPropertyInvalidOptionSearchString = "INVALID_OPTION";
 
         public ActivityValidator()
         {
@@ -35,29 +35,30 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Validation
 
             RuleSet(RuleSetName.NewRegistrationSync, () =>
             {
-                RuleFor(activity => activity.NewRegistrationSyncOperation).NotNull();
-                RuleFor(activity => activity.NewRegistrationSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringNewRegistrationSyncOperation);
+                RuleFor(activity => activity.NewRegistrationSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringActivitySyncOperation);
             });
 
             RuleSet(RuleSetName.CoreContactAttributeSync, () =>
             {
-                RuleFor(activity => activity.CoreContactAttributeSyncOperation).NotNull();
-                RuleFor(activity => activity.CoreContactAttributeSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringCoreUpdateSyncOperation);
+                RuleFor(activity => activity.CoreContactAttributeSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringActivitySyncOperation);
             });
 
             RuleSet(RuleSetName.ChildAgeGradeSync, () =>
             {
-                RuleFor(activity => activity.ChildAgeAndGradeSyncOperation).NotNull();
                 RuleFor(activity => activity.ChildAgeAndGradeSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringAgeGradeSyncOperation);
             });
         }
+
+        protected override void EnsureInstanceNotNull(object instanceToValidate) { }
 
         /// <summary>
         /// If a property doesn't exist in HubSpot, then don't save a last successful date for
         /// new registrations b/c records have been rejected that need to be retried.
         /// </summary>
-        private bool NotHaveEncounteredHubSpotIssuesDuringNewRegistrationSyncOperation(IActivitySyncOperation operation)
+        private bool NotHaveEncounteredHubSpotIssuesDuringActivitySyncOperation(IActivitySyncOperation operation)
         {
+            if (operation == null) return true;
+
             var failures = operation.SerialCreateResult.Failures
                 .Union(operation.SerialUpdateResult.Failures)
                 .Union(operation.SerialReconciliationResult.Failures).ToList();
@@ -65,21 +66,10 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Validation
             return HubSpotIssuesEncountered(failures) == false;
         }
 
-        /// <summary>
-        /// If a property doesn't exist in HubSpot, then don't save last successful dates for core
-        /// contact updates b/c records have been rejected that need to be retried.
-        /// </summary>
-        private bool NotHaveEncounteredHubSpotIssuesDuringCoreUpdateSyncOperation(IActivitySyncOperation operation)
-        {
-            var failures = operation.SerialUpdateResult.Failures
-                .Union(operation.SerialCreateResult.Failures)
-                .Union(operation.SerialReconciliationResult.Failures).ToList();
-
-            return HubSpotIssuesEncountered(failures) == false;
-        }
-
         private bool NotHaveEncounteredHubSpotIssuesDuringAgeGradeSyncOperation(IActivityChildAgeAndGradeSyncOperation operation)
         {
+            if (operation == null) return true;
+
             var failures = operation.BulkUpdateSyncResult1000.FailedBatches
                 .Union(operation.BulkUpdateSyncResult100.FailedBatches)
                 .Union(operation.BulkUpdateSyncResult10.FailedBatches)
@@ -115,15 +105,13 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Validation
                    errors.Any(item => item.Contains(HubSpotPropertyInvalidOptionSearchString));         // Value passed to a static list HubSpot property is invalid (possible user error)
         }
 
-        private IEnumerable<string> GetErrors(IFailureDetails failure)
-        {
-            return failure?.Exception?.ValidationResults?.Select(result => result?.Error) ?? Enumerable.Empty<string>();
-        }
+        private IEnumerable<string> GetErrors(IFailureDetails failure) =>
+            failure?.Exception?.ValidationResults?.Select(result => result?.Error) ?? Enumerable.Empty<string>();
 
         /// <summary>
         /// This should cover things like 401 Unauthorized (API key is no good), 429s if we've got HubSpot
-        /// cross-talk between apps and go over the 10/s rate-limit, 500 internal service errors, 504 gateway
-        /// timeout errors, etc. This should NOT HAVE TO handle 409 Conflicts, b/c we handle these in the app
+        /// cross-talk between apps and go over the 10/s rate-limit, 500 internal server errors, 504 gateway
+        /// timeout errors, etc. This *should* NOT HAVE TO handle 409 Conflicts, b/c we handle these in the app
         /// layer.
         /// 
         /// We are EXPLICITLY, PURPOSELY excluding 400s, as we send bad email addresses over the wire ALL THE
@@ -133,9 +121,7 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Validation
         /// grow indefinitely. We'll preserve validation failure for more pressing errors (temporary server failures,
 		/// configuration-related exceptions, etc).
         /// </summary>
-        private bool IsAnUnhandledHttpClientOrServerError(HttpStatusCode httpStatusCode)
-        {
-            return (int)httpStatusCode > 400 && (int)httpStatusCode < 600;
-        }
+        private bool IsAnUnhandledHttpClientOrServerError(HttpStatusCode httpStatusCode) =>
+            (int)httpStatusCode > 400 && (int)httpStatusCode < 600;
     }
 }
