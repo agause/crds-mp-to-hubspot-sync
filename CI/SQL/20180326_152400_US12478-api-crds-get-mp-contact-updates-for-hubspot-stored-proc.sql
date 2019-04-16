@@ -16,8 +16,8 @@ as
     with EmailAddressAuditLog as (
         select          MostRecentFieldChanges.RecordId as UserId,
                         'email' as PropertyName, -- the value of the "PropertyName" column corresponds to the "property name" used in HubSpot (passed along in the HS API payload)
-                        InitialEmailChangeAuditLog.PreviousValue,
-                        LatestEmailChangeAuditLog.NewValue
+                        trim(InitialEmailChangeAuditLog.PreviousValue) as PreviousValue,
+                        trim(LatestEmailChangeAuditLog.NewValue) as NewValue
 
         from            (
                             select          MostRecentEmailChange.RecordId,
