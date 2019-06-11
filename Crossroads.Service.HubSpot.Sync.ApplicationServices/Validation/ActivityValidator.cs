@@ -32,21 +32,9 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Validation
         public ActivityValidator()
         {
             RuleFor(activity => activity).NotNull();
-
-            RuleSet(RuleSetName.NewRegistrationSync, () =>
-            {
-                RuleFor(activity => activity.NewRegistrationSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringActivitySyncOperation);
-            });
-
-            RuleSet(RuleSetName.CoreContactAttributeSync, () =>
-            {
-                RuleFor(activity => activity.CoreContactAttributeSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringActivitySyncOperation);
-            });
-
-            RuleSet(RuleSetName.ChildAgeGradeSync, () =>
-            {
-                RuleFor(activity => activity.ChildAgeAndGradeSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringAgeGradeSyncOperation);
-            });
+            RuleSet(RuleSetName.NewRegistrationSync, () => RuleFor(activity => activity.NewRegistrationSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringActivitySyncOperation));
+            RuleSet(RuleSetName.CoreContactAttributeSync, () => RuleFor(activity => activity.CoreContactAttributeSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringActivitySyncOperation));
+            RuleSet(RuleSetName.ChildAgeGradeSync, () => RuleFor(activity => activity.ChildAgeAndGradeSyncOperation).Must(NotHaveEncounteredHubSpotIssuesDuringAgeGradeSyncOperation));
         }
 
         protected override void EnsureInstanceNotNull(object instanceToValidate) { }
@@ -121,7 +109,6 @@ namespace Crossroads.Service.HubSpot.Sync.ApplicationServices.Validation
         /// grow indefinitely. We'll preserve validation failure for more pressing errors (temporary server failures,
 		/// configuration-related exceptions, etc).
         /// </summary>
-        private bool IsAnUnhandledHttpClientOrServerError(HttpStatusCode httpStatusCode) =>
-            (int)httpStatusCode > 400 && (int)httpStatusCode < 600;
+        private bool IsAnUnhandledHttpClientOrServerError(HttpStatusCode httpStatusCode) => (int)httpStatusCode > 400 && (int)httpStatusCode < 600;
     }
 }
